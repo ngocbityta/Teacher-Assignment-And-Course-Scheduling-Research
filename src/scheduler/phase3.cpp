@@ -39,18 +39,34 @@ namespace
 
         // course -> set of teachers teaching it (for min/max teacher bounds)
         unordered_map<string, unordered_set<string>> course_teachers;
+
+        // classroom_id -> set of slot_keys (busy classrooms)
+        unordered_map<string, unordered_set<string>> classroom_busy;
     };
 
-    static SolIndex build_index(const OptimalSolution &sol)
+    static SolIndex build_index(const OptimalSolution &sol, const ProblemData &data)
     {
         SolIndex idx;
         for (const auto &a : sol.assignments)
         {
-            string sk = slot_key(a.day, a.period);
-            idx.slot_count[sk]++;
-            idx.teacher_busy[a.teacher_id].insert(sk);
-            idx.course_slot_section[a.course_id][sk] = a.section_id;
-            idx.course_teachers[a.course_id].insert(a.teacher_id);
+            // Index all periods in the block, not just the start period
+            int required_periods = get_required_periods(data, a.course_id, a.section_id);
+            int start_period_idx = find_period_index(data.classrooms.periods, a.period);
+            
+            if (start_period_idx >= 0)
+            {
+                for (int t = 0; t < required_periods && start_period_idx + t < (int)data.classrooms.periods.size(); ++t)
+                {
+                    string period = data.classrooms.periods[start_period_idx + t];
+                    string sk = slot_key(a.day, period);
+                    idx.slot_count[sk]++;
+                    idx.teacher_busy[a.teacher_id].insert(sk);
+                    idx.course_slot_section[a.course_id][sk] = a.section_id;
+                    idx.course_teachers[a.course_id].insert(a.teacher_id);
+                    if (!a.classroom_id.empty())
+                        idx.classroom_busy[a.classroom_id].insert(sk);
+                }
+            }
         }
         return idx;
     }
@@ -67,6 +83,59 @@ namespace
             }
         }
         return 1;
+    }
+
+    // Helper function to find period index in periods vector
+    static int find_period_index(const vector<string> &periods, const string &period)
+    {
+        for (int m = 0; m < (int)periods.size(); ++m)
+        {
+            if (periods[m] == period)
+                return m;
+        }
+        return -1;
+    }
+
+    static int get_required_seats(const ProblemData &data, const string &course_id, const string &section_id)
+    {
+        for (const auto &c : data.courses)
+        {
+            if (c.id == course_id)
+            {
+                for (const auto &s : c.sections)
+                    if (s.id == section_id)
+                        return s.required_seats;
+            }
+        }
+        return 0;
+    }
+
+    // Tìm classroom phù hợp cho một assignment
+    static string find_suitable_classroom(const ProblemData &data, 
+                                          const string &course_id, 
+                                          const string &section_id,
+                                          const string &day,
+                                          const string &period,
+                                          const OptimalSolution &sol,
+                                          const SolIndex &idx)
+    {
+        int required_seats = get_required_seats(data, course_id, section_id);
+        string sk = slot_key(day, period);
+        
+        if (data.classrooms.classrooms.empty())
+            return "";
+        
+        // Tìm classroom có đủ capacity và chưa được sử dụng trong slot này
+        for (const auto &room : data.classrooms.classrooms)
+        {
+            if (room.capacity >= required_seats)
+            {
+                auto it_cb = idx.classroom_busy.find(room.id);
+                if (it_cb == idx.classroom_busy.end() || it_cb->second.find(sk) == it_cb->second.end())
+                    return room.id; // Tìm thấy classroom phù hợp
+            }
+        }
+        return "";
     }
 
     static string assignment_sig(const OptimalSolution::Assignment &a)
@@ -104,6 +173,7 @@ namespace
                                 const string &section_id,
                                 const string &day,
                                 const string &start_period,
+                                const string &classroom_id,
                                 const OptimalSolution &sol,
                                 const SolIndex &idx,
                                 const ProblemData &data)
@@ -120,13 +190,7 @@ namespace
         int r = get_required_periods(data, course_id, section_id);
 
         // find start idx in periods
-        int start_idx = -1;
-        for (int m = 0; m < (int)data.classrooms.periods.size(); ++m)
-            if (data.classrooms.periods[m] == start_period)
-            {
-                start_idx = m;
-                break;
-            }
+        int start_idx = find_period_index(data.classrooms.periods, start_period);
         if (start_idx < 0 || start_idx + r - 1 >= (int)data.classrooms.periods.size())
             return false;
 
@@ -140,20 +204,42 @@ namespace
             if (it_tb != idx.teacher_busy.end() && it_tb->second.find(sk) != it_tb->second.end())
                 return false;
 
-            // --- room capacity (O(1)) ---
-            auto day_it = data.classrooms.Clm.find(day);
-            if (day_it == data.classrooms.Clm.end())
-                return false;
-            auto period_it = day_it->second.find(period);
-            if (period_it == day_it->second.end())
-                return false;
-            int cap = period_it->second;
-            int cnt = 0;
-            auto it_sc = idx.slot_count.find(sk);
-            if (it_sc != idx.slot_count.end())
-                cnt = it_sc->second;
-            if (cnt >= cap)
-                return false;
+            // --- classroom capacity check ---
+            int required_seats = get_required_seats(data, course_id, section_id);
+            if (!classroom_id.empty() && !data.classrooms.classrooms.empty())
+            {
+                // Tìm classroom và kiểm tra capacity
+                auto it_classroom = find_if(data.classrooms.classrooms.begin(), data.classrooms.classrooms.end(),
+                                           [&](const Classroom &c) { return c.id == classroom_id; });
+                if (it_classroom == data.classrooms.classrooms.end())
+                    return false; // classroom không tồn tại
+                if (it_classroom->capacity < required_seats)
+                    return false; // classroom không đủ chỗ ngồi
+                
+                // Kiểm tra xem classroom đã được sử dụng trong time slot này chưa
+                auto it_cb = idx.classroom_busy.find(classroom_id);
+                if (it_cb != idx.classroom_busy.end() && it_cb->second.find(sk) != it_cb->second.end())
+                    return false; // classroom đã được sử dụng trong slot này
+            }
+            else
+            {
+                // Fallback: sử dụng Clm nếu không có classrooms được định nghĩa
+                auto day_it = data.classrooms.Clm.find(day);
+                if (day_it != data.classrooms.Clm.end())
+                {
+                    auto period_it = day_it->second.find(period);
+                    if (period_it != day_it->second.end())
+                    {
+                        int cap = period_it->second;
+                        int cnt = 0;
+                        auto it_sc = idx.slot_count.find(sk);
+                        if (it_sc != idx.slot_count.end())
+                            cnt = it_sc->second;
+                        if (cnt >= cap)
+                            return false;
+                    }
+                }
+            }
 
             // --- same-course conflict: check idx.course_slot_section ---
             auto it_cs = idx.course_slot_section.find(course_id);
@@ -173,11 +259,12 @@ namespace
                            const string &section_id,
                            const string &day,
                            const string &period,
+                           const string &classroom_id,
                            const OptimalSolution &sol,
                            const SolIndex &idx,
                            const ProblemData &data)
     {
-        return IsFeasibleBlock(teacher_id, course_id, section_id, day, period, sol, idx, data);
+        return IsFeasibleBlock(teacher_id, course_id, section_id, day, period, classroom_id, sol, idx, data);
     }
 
     // ---------- Objective Evaluation ----------
@@ -192,22 +279,66 @@ namespace
         return sqrt(s / vals.size());
     }
 
-    static int Evaluate(const OptimalSolution &sol, const ProblemData &data, int history_count = 0)
+    // Build teacher lookup map for O(1) access
+    static unordered_map<string, const Teacher*> build_teacher_map(const ProblemData &data)
+    {
+        unordered_map<string, const Teacher*> teacher_map;
+        for (const auto &t : data.teachers)
+            teacher_map[t.id] = &t;
+        return teacher_map;
+    }
+
+    // Build time preference lookup map: teacher_id -> (day, period) -> score
+    static unordered_map<string, unordered_map<string, int>> build_time_pref_map(const ProblemData &data)
+    {
+        unordered_map<string, unordered_map<string, int>> time_pref_map;
+        for (const auto &t : data.teachers)
+        {
+            for (const auto &tp : t.time_pref)
+            {
+                string key = tp.day + "|" + tp.period;
+                time_pref_map[t.id][key] = tp.score;
+            }
+        }
+        return time_pref_map;
+    }
+
+    static int Evaluate(const OptimalSolution &sol, 
+                        const ProblemData &data, 
+                        const unordered_map<string, const Teacher*> &teacher_map,
+                        const unordered_map<string, unordered_map<string, int>> &time_pref_map,
+                        int history_count = 0)
     {
         int score = 0;
         for (const auto &a : sol.assignments)
         {
-            auto it_t = find_if(data.teachers.begin(), data.teachers.end(),
-                                [&](const Teacher &t)
-                                { return t.id == a.teacher_id; });
-            if (it_t != data.teachers.end())
+            auto it_t = teacher_map.find(a.teacher_id);
+            if (it_t != teacher_map.end())
             {
-                auto pc_it = it_t->course_pref.find(a.course_id);
-                if (pc_it != it_t->course_pref.end())
+                const Teacher* teacher = it_t->second;
+                
+                auto pc_it = teacher->course_pref.find(a.course_id);
+                if (pc_it != teacher->course_pref.end())
                     score += pc_it->second;
-                for (const auto &tp : it_t->time_pref)
-                    if (tp.day == a.day && tp.period == a.period)
-                        score += tp.score;
+                
+                int required_periods = get_required_periods(data, a.course_id, a.section_id);
+                int start_period_idx = find_period_index(data.classrooms.periods, a.period);
+                
+                if (start_period_idx >= 0)
+                {
+                    for (int t = 0; t < required_periods && start_period_idx + t < (int)data.classrooms.periods.size(); ++t)
+                    {
+                        string period = data.classrooms.periods[start_period_idx + t];
+                        string key = a.day + "|" + period;
+                        auto tp_it = time_pref_map.find(a.teacher_id);
+                        if (tp_it != time_pref_map.end())
+                        {
+                            auto score_it = tp_it->second.find(key);
+                            if (score_it != tp_it->second.end())
+                                score += score_it->second;
+                        }
+                    }
+                }
             }
         }
         if (history_count > 3)
@@ -242,10 +373,10 @@ namespace
         {
             OptimalSolution cand = sol;
             cand.assignments[idx_assign].teacher_id = new_teacher;
-            SolIndex idx = build_index(cand);
+            SolIndex idx = build_index(cand, data);
             if (!check_course_teacher_bounds(idx, data))
                 ; // reject due to teacher bounds
-            else if (IsFeasible(new_teacher, a.course_id, a.section_id, a.day, a.period, cand, idx, data))
+            else if (IsFeasible(new_teacher, a.course_id, a.section_id, a.day, a.period, a.classroom_id, cand, idx, data))
             {
                 OptimalSolution::Assignment old = a;
                 a.teacher_id = new_teacher;
@@ -265,14 +396,21 @@ namespace
             OptimalSolution cand = sol;
             cand.assignments[idx_assign].day = new_day;
             cand.assignments[idx_assign].period = new_period;
-            SolIndex idx = build_index(cand);
+            SolIndex idx_temp = build_index(cand, data);
+            // Tìm classroom phù hợp cho time slot mới
+            string new_classroom_id = find_suitable_classroom(data, a.course_id, a.section_id, new_day, new_period, cand, idx_temp);
+            if (new_classroom_id.empty())
+                continue;
+            cand.assignments[idx_assign].classroom_id = new_classroom_id;
+            SolIndex idx = build_index(cand, data);
             if (!check_course_teacher_bounds(idx, data))
                 continue;
-            if (IsFeasible(a.teacher_id, a.course_id, a.section_id, new_day, new_period, cand, idx, data))
+            if (IsFeasible(a.teacher_id, a.course_id, a.section_id, new_day, new_period, new_classroom_id, cand, idx, data))
             {
                 OptimalSolution::Assignment old = a;
                 a.day = new_day;
                 a.period = new_period;
+                a.classroom_id = new_classroom_id;
                 return {true, pair_sig(old, a)};
             }
         }
@@ -294,12 +432,12 @@ namespace
 
         OptimalSolution cand = sol;
         swap(cand.assignments[i].teacher_id, cand.assignments[j].teacher_id);
-        SolIndex idx = build_index(cand);
+        SolIndex idx = build_index(cand, data);
         if (!check_course_teacher_bounds(idx, data))
             return {false, ""};
 
-        if (IsFeasible(cand.assignments[i].teacher_id, A.course_id, A.section_id, A.day, A.period, cand, idx, data) &&
-            IsFeasible(cand.assignments[j].teacher_id, B.course_id, B.section_id, B.day, B.period, cand, idx, data))
+        if (IsFeasible(cand.assignments[i].teacher_id, A.course_id, A.section_id, A.day, A.period, A.classroom_id, cand, idx, data) &&
+            IsFeasible(cand.assignments[j].teacher_id, B.course_id, B.section_id, B.day, B.period, B.classroom_id, cand, idx, data))
         {
             OptimalSolution::Assignment oldA = A, oldB = B;
             swap(A.teacher_id, B.teacher_id);
@@ -325,21 +463,24 @@ namespace
         cand.assignments[i].teacher_id = b.teacher_id;
         cand.assignments[i].day = b.day;
         cand.assignments[i].period = b.period;
+        cand.assignments[i].classroom_id = b.classroom_id;
         // place a into b's slot
         cand.assignments[j].teacher_id = a.teacher_id;
         cand.assignments[j].day = a.day;
         cand.assignments[j].period = a.period;
+        cand.assignments[j].classroom_id = a.classroom_id;
 
-        SolIndex idx = build_index(cand);
+        SolIndex idx = build_index(cand, data);
         if (!check_course_teacher_bounds(idx, data))
             return {false, ""};
 
-        if (IsFeasible(cand.assignments[i].teacher_id, a.course_id, a.section_id, cand.assignments[i].day, cand.assignments[i].period, cand, idx, data) &&
-            IsFeasible(cand.assignments[j].teacher_id, b.course_id, b.section_id, cand.assignments[j].day, cand.assignments[j].period, cand, idx, data))
+        if (IsFeasible(cand.assignments[i].teacher_id, a.course_id, a.section_id, cand.assignments[i].day, cand.assignments[i].period, cand.assignments[i].classroom_id, cand, idx, data) &&
+            IsFeasible(cand.assignments[j].teacher_id, b.course_id, b.section_id, cand.assignments[j].day, cand.assignments[j].period, cand.assignments[j].classroom_id, cand, idx, data))
         {
             swap(sol.assignments[i].teacher_id, sol.assignments[j].teacher_id);
             swap(sol.assignments[i].day, sol.assignments[j].day);
             swap(sol.assignments[i].period, sol.assignments[j].period);
+            swap(sol.assignments[i].classroom_id, sol.assignments[j].classroom_id);
             return {true, pair_sig(a, b)};
         }
         return {false, ""};
@@ -364,14 +505,20 @@ namespace
             OptimalSolution cand = sol;
             cand.assignments[idx_assign].day = nd;
             cand.assignments[idx_assign].period = np;
-            SolIndex idx = build_index(cand);
+            SolIndex idx_temp = build_index(cand, data);
+            string new_classroom_id = find_suitable_classroom(data, a.course_id, a.section_id, nd, np, cand, idx_temp);
+            if (new_classroom_id.empty())
+                continue;
+            cand.assignments[idx_assign].classroom_id = new_classroom_id;
+            SolIndex idx = build_index(cand, data);
             if (!check_course_teacher_bounds(idx, data))
                 continue;
-            if (IsFeasibleBlock(a.teacher_id, a.course_id, a.section_id, nd, np, cand, idx, data))
+            if (IsFeasibleBlock(a.teacher_id, a.course_id, a.section_id, nd, np, new_classroom_id, cand, idx, data))
             {
                 OptimalSolution::Assignment old = a;
                 a.day = nd;
                 a.period = np;
+                a.classroom_id = new_classroom_id;
                 return {true, pair_sig(old, a)};
             }
         }
@@ -393,35 +540,41 @@ namespace
         cand.assignments[i].day = B.day;
         cand.assignments[i].period = B.period;
         cand.assignments[i].teacher_id = B.teacher_id;
+        cand.assignments[i].classroom_id = B.classroom_id;
         cand.assignments[j].day = A.day;
         cand.assignments[j].period = A.period;
         cand.assignments[j].teacher_id = A.teacher_id;
+        cand.assignments[j].classroom_id = A.classroom_id;
 
-        SolIndex idx = build_index(cand);
+        SolIndex idx = build_index(cand, data);
         if (!check_course_teacher_bounds(idx, data))
             return {false, ""};
 
-        if (IsFeasibleBlock(cand.assignments[i].teacher_id, A.course_id, A.section_id, cand.assignments[i].day, cand.assignments[i].period, cand, idx, data) &&
-            IsFeasibleBlock(cand.assignments[j].teacher_id, B.course_id, B.section_id, cand.assignments[j].day, cand.assignments[j].period, cand, idx, data))
+        if (IsFeasibleBlock(cand.assignments[i].teacher_id, A.course_id, A.section_id, cand.assignments[i].day, cand.assignments[i].period, cand.assignments[i].classroom_id, cand, idx, data) &&
+            IsFeasibleBlock(cand.assignments[j].teacher_id, B.course_id, B.section_id, cand.assignments[j].day, cand.assignments[j].period, cand.assignments[j].classroom_id, cand, idx, data))
         {
             swap(sol.assignments[i].day, sol.assignments[j].day);
             swap(sol.assignments[i].period, sol.assignments[j].period);
             swap(sol.assignments[i].teacher_id, sol.assignments[j].teacher_id);
+            swap(sol.assignments[i].classroom_id, sol.assignments[j].classroom_id);
             return {true, pair_sig(A, B)};
         }
         return {false, ""};
     }
 
-} // anonymous namespace
+}
 
 // ---------- Main Phase3 ----------
 OptimalSolution find_optimal_solution(const ProblemData &data, const InitialSolution &initial)
 {
+    unordered_map<string, const Teacher*> teacher_map = build_teacher_map(data);
+    unordered_map<string, unordered_map<string, int>> time_pref_map = build_time_pref_map(data);
+
     OptimalSolution current = initial;
     OptimalSolution temp = initial;
     OptimalSolution best = initial;
 
-    current.objective_value = Evaluate(current, data);
+    current.objective_value = Evaluate(current, data, teacher_map, time_pref_map);
     temp.objective_value = current.objective_value;
     best.objective_value = current.objective_value;
 
@@ -467,15 +620,15 @@ OptimalSolution find_optimal_solution(const ProblemData &data, const InitialSolu
                     continue;
                 string sig = res.second;
 
-                // check tabu
+                // Evaluate candidate once
+                int cand_score = Evaluate(cand, data, teacher_map, time_pref_map, history_count[sig]);
+                
+                // check tabu (aspiration criterion: accept if better than best)
                 if (!sig.empty() && tabu_set.find(sig) != tabu_set.end())
                 {
-                    int cand_score = Evaluate(cand, data, history_count[sig]);
                     if (cand_score <= best.objective_value)
                         continue; // reject unless aspiration
                 }
-
-                int cand_score = Evaluate(cand, data, history_count[sig]);
                 int delta = cand_score - temp.objective_value;
 
                 bool accept = false;
@@ -554,7 +707,7 @@ OptimalSolution find_optimal_solution(const ProblemData &data, const InitialSolu
                     continue;
                 string sig = res.second;
 
-                int cand_score = Evaluate(cand, data, history_count[sig]);
+                int cand_score = Evaluate(cand, data, teacher_map, time_pref_map, history_count[sig]);
 
                 uniform_real_distribution<double> u(0.0, 1.0);
                 recent_objs.push_back(temp.objective_value);

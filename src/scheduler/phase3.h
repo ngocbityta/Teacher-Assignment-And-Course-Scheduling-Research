@@ -13,6 +13,7 @@ struct OptimalSolution {
         string section_id;
         string day;
         string period;
+        string classroom_id; // lớp học được phân bổ
     };
 
     vector<Assignment> assignments;
@@ -21,7 +22,7 @@ struct OptimalSolution {
     OptimalSolution(const InitialSolution &init) {
         assignments.clear();
         for (const auto &a : init.assignments) {
-            assignments.push_back({a.teacher_id, a.course_id, a.section_id, a.day, a.period});
+            assignments.push_back({a.teacher_id, a.course_id, a.section_id, a.day, a.period, a.classroom_id});
         }
     }
 };

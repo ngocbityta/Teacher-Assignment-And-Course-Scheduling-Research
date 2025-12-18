@@ -50,6 +50,7 @@ static void fill_course_from_json(Course &course, const json &jc)
             Section sec;
             sec.id = s.value("id", string());
             sec.required_periods = s.value("required_periods", 1);
+            sec.required_seats = s.value("required_seats", 0);
             course.sections.push_back(sec);
         }
     }
@@ -84,6 +85,20 @@ ProblemData initialize_problem_from_json(const json &j_input)
     const json &jc = j_input["classrooms"];
     data.classrooms.days = jc.value("days", vector<string>{});
     data.classrooms.periods = jc.value("periods", vector<string>{});
+    
+    // Đọc danh sách classrooms với capacity
+    if (jc.contains("classrooms"))
+    {
+        for (const auto &cl : jc["classrooms"])
+        {
+            Classroom room;
+            room.id = cl.value("id", string());
+            room.capacity = cl.value("capacity", 0);
+            data.classrooms.classrooms.push_back(room);
+        }
+    }
+    
+    // Giữ lại để tương thích ngược (deprecated)
     if (jc.contains("classrooms_per_slot"))
         data.classrooms.Clm = jc["classrooms_per_slot"].get<map<string, map<string, int>>>();
 

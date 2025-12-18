@@ -1,0 +1,52 @@
+{
+  "description": "Test Case 5: Multi-period blocks (1-4 periods) - tests block scheduling",
+  "classrooms": {
+    "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    "periods": ["1", "2", "3", "4", "5", "6"],
+    "classrooms": [
+      { "id": "R101", "capacity": 60 },
+      { "id": "R102", "capacity": 55 },
+      { "id": "R201", "capacity": 50 },
+      { "id": "R202", "capacity": 45 }
+    ]
+  },
+  "teachers": [
+    {"id": "T1", "name": "Teacher 1", "max_courses": 3, "course_preferences": {"MATH101": 9, "CS101": 8, "PHY101": 7}, "day_time_preferences": {"Mon": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}, "Tue": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}, "Wed": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6}}, "eligible_courses": ["MATH101", "CS101", "PHY101"]},
+    {"id": "T2", "name": "Teacher 2", "max_courses": 3, "course_preferences": {"MATH102": 9, "CS102": 8, "CHEM101": 7}, "day_time_preferences": {"Mon": {"1": 8, "2": 7, "3": 6, "4": 5, "5": 4, "6": 3}, "Tue": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}, "Wed": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}}, "eligible_courses": ["MATH102", "CS102", "CHEM101"]},
+    {"id": "T3", "name": "Teacher 3", "max_courses": 4, "course_preferences": {"CS201": 9, "CS202": 8, "BIO101": 7, "ENG101": 6}, "day_time_preferences": {"Mon": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6}, "Tue": {"1": 8, "2": 7, "3": 8, "4": 9, "5": 8, "6": 7}, "Wed": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}}, "eligible_courses": ["CS201", "CS202", "BIO101", "ENG101"]},
+    {"id": "T4", "name": "Teacher 4", "max_courses": 3, "course_preferences": {"PHY102": 9, "ENG102": 8, "HIST101": 7}, "day_time_preferences": {"Mon": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}, "Tue": {"1": 7, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}, "Wed": {"1": 8, "2": 7, "3": 9, "4": 8, "5": 7, "6": 6}}, "eligible_courses": ["PHY102", "ENG102", "HIST101"]},
+    {"id": "T5", "name": "Teacher 5", "max_courses": 4, "course_preferences": {"BIO102": 9, "GEO101": 8, "ECON101": 7, "PSY101": 6}, "day_time_preferences": {"Mon": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}, "Tue": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6}, "Wed": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}}, "eligible_courses": ["BIO102", "GEO101", "ECON101", "PSY101"]},
+    {"id": "T6", "name": "Teacher 6", "max_courses": 3, "course_preferences": {"SOC101": 9, "PHIL101": 8, "ART101": 7}, "day_time_preferences": {"Mon": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6}, "Tue": {"1": 9, "2": 7, "3": 8, "4": 9, "5": 8, "6": 7}, "Wed": {"1": 8, "2": 9, "3": 7, "4": 8, "5": 9, "6": 8}}, "eligible_courses": ["SOC101", "PHIL101", "ART101"]},
+    {"id": "T7", "name": "Teacher 7", "max_courses": 4, "course_preferences": {"MUS101": 9, "PE101": 8, "HEALTH101": 7, "BUS101": 6}, "day_time_preferences": {"Mon": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}, "Tue": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}, "Wed": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6}}, "eligible_courses": ["MUS101", "PE101", "HEALTH101", "BUS101"]},
+    {"id": "T8", "name": "Teacher 8", "max_courses": 3, "course_preferences": {"ACC101": 9, "FIN101": 8, "MKT101": 7}, "day_time_preferences": {"Mon": {"1": 8, "2": 7, "3": 6, "4": 5, "5": 4, "6": 3}, "Tue": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4}, "Wed": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5}}, "eligible_courses": ["ACC101", "FIN101", "MKT101"]}
+  ],
+  "courses": [
+    {"id": "MATH101", "name": "Calculus I", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 50}, {"id": "S2", "required_periods": 2, "required_seats": 45}, {"id": "S3", "required_periods": 3, "required_seats": 40}], "min_teachers": 1, "max_teachers": 3},
+    {"id": "MATH102", "name": "Calculus II", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 45}, {"id": "S2", "required_periods": 4, "required_seats": 40}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "CS101", "name": "Programming", "sections": [{"id": "S1", "required_periods": 3, "required_seats": 55}, {"id": "S2", "required_periods": 4, "required_seats": 50}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "CS102", "name": "Data Structures", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 50}, {"id": "S2", "required_periods": 3, "required_seats": 45}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "CS201", "name": "Algorithms", "sections": [{"id": "S1", "required_periods": 4, "required_seats": 45}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "CS202", "name": "Database", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 40}, {"id": "S2", "required_periods": 3, "required_seats": 35}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "PHY101", "name": "Physics I", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 50}, {"id": "S2", "required_periods": 3, "required_seats": 45}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "PHY102", "name": "Physics II", "sections": [{"id": "S1", "required_periods": 4, "required_seats": 45}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "CHEM101", "name": "Chemistry I", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 40}, {"id": "S2", "required_periods": 2, "required_seats": 35}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "BIO101", "name": "Biology I", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 40}, {"id": "S2", "required_periods": 3, "required_seats": 35}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "BIO102", "name": "Biology II", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 35}, {"id": "S2", "required_periods": 4, "required_seats": 30}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "ENG101", "name": "English I", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 30}, {"id": "S2", "required_periods": 3, "required_seats": 25}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "ENG102", "name": "English II", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 30}, {"id": "S2", "required_periods": 2, "required_seats": 25}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "HIST101", "name": "History", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 40}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "GEO101", "name": "Geography", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 35}, {"id": "S2", "required_periods": 2, "required_seats": 30}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "ECON101", "name": "Economics", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 40}, {"id": "S2", "required_periods": 3, "required_seats": 35}], "min_teachers": 1, "max_teachers": 2},
+    {"id": "PSY101", "name": "Psychology", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 35}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "SOC101", "name": "Sociology", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 35}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "PHIL101", "name": "Philosophy", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 30}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "ART101", "name": "Art", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 25}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "MUS101", "name": "Music", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 25}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "PE101", "name": "PE", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 30}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "HEALTH101", "name": "Health", "sections": [{"id": "S1", "required_periods": 1, "required_seats": 30}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "BUS101", "name": "Business", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 40}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "ACC101", "name": "Accounting", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 35}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "FIN101", "name": "Finance", "sections": [{"id": "S1", "required_periods": 3, "required_seats": 35}], "min_teachers": 1, "max_teachers": 1},
+    {"id": "MKT101", "name": "Marketing", "sections": [{"id": "S1", "required_periods": 2, "required_seats": 40}], "min_teachers": 1, "max_teachers": 1}
+  ]
+}

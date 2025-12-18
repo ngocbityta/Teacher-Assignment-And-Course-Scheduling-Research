@@ -40,6 +40,7 @@ InitialSolution construct_initial_solution(const ProblemData &data)
     int J = (int)data.courses.size();
     int L = (int)data.classrooms.days.size();
     int M = (int)data.classrooms.periods.size();
+    int C = (int)data.classrooms.classrooms.size(); // số lượng lớp học
 
     // sections per course
     vector<int> S;
@@ -147,6 +148,43 @@ InitialSolution construct_initial_solution(const ProblemData &data)
                 P[{i, j}] = model.NewBoolVar().WithName(name);
             }
 
+    // Z(i,j,k,l,m0,c) : teacher i starts section k of course j at day l, starting period m0, assigned to classroom c
+    // Key: (i, j, k, l, m0, c)
+    using ZKey = tuple<int, int, int, int, int, int>;
+    map<ZKey, BoolVar> Z;
+
+    for (int i = 0; i < I; ++i)
+    {
+        for (int j = 0; j < J; ++j)
+        {
+            if (!eligible[i][j])
+                continue;
+            for (int k = 0; k < S[j]; ++k)
+            {
+                int r = data.courses[j].sections[k].required_periods;
+                int required_seats = data.courses[j].sections[k].required_seats;
+                for (int l = 0; l < L; ++l)
+                {
+                    for (int m0 = 0; m0 < M; ++m0)
+                    {
+                        if (m0 + r - 1 < M)
+                        {
+                            // Chỉ tạo biến Z cho các lớp học có đủ capacity
+                            for (int c = 0; c < C; ++c)
+                            {
+                                if (data.classrooms.classrooms[c].capacity >= required_seats)
+                                {
+                                    string name = string("Z_t") + to_string(i) + "_c" + to_string(j) + "_s" + to_string(k) + "_d" + to_string(l) + "_m" + to_string(m0) + "_room" + to_string(c);
+                                    Z[ZKey(i, j, k, l, m0, c)] = model.NewBoolVar().WithName(name);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // ---------- Constraints ----------
 
     // 1) Each section must be scheduled exactly once (one teacher, one day, one start)
@@ -169,6 +207,28 @@ InitialSolution construct_initial_solution(const ProblemData &data)
             }
             model.AddEquality(sumStarts, 1);
         }
+    }
+
+    // 1a) Link Y and Z: if Y(i,j,k,l,m0) = 1, then exactly one Z(i,j,k,l,m0,c) = 1
+    for (auto &y_entry : Y)
+    {
+        Key y_key = y_entry.first;
+        int i, j, k, l, m0;
+        tie(i, j, k, l, m0) = y_key;
+        int required_seats = data.courses[j].sections[k].required_seats;
+        
+        LinearExpr sumZ = 0;
+        for (int c = 0; c < C; ++c)
+        {
+            if (data.classrooms.classrooms[c].capacity >= required_seats)
+            {
+                auto z_it = Z.find({i, j, k, l, m0, c});
+                if (z_it != Z.end())
+                    sumZ += z_it->second;
+            }
+        }
+        // Y[i,j,k,l,m0] == sum_c Z[i,j,k,l,m0,c]
+        model.AddEquality(y_entry.second, sumZ);
     }
 
     // 2) Link P and Y: if any Y(i,j,k,.,.) = 1 => P(i,j) = 1, and if P=1 then sumY >= 1
@@ -216,16 +276,47 @@ InitialSolution construct_initial_solution(const ProblemData &data)
     }
 
     // 5) Classroom capacity & teacher single-slot & course-per-time constraints:
-    // For every (l,m) we compute occupancy by summing Y that cover (l,m)
+    // For every (l,m) and every classroom c, we compute occupancy by summing Z that cover (l,m) and use classroom c
     for (int l = 0; l < L; ++l)
         for (int m = 0; m < M; ++m)
         {
-            LinearExpr total_in_slot = 0;
             // For course-per-slot restriction: for each course j ensure at most 1 section of this course in (l,m)
             vector<LinearExpr> per_course_sum(J);
             for (int j = 0; j < J; ++j)
                 per_course_sum[j] = LinearExpr(0);
 
+            // For each classroom, check capacity constraint
+            for (int c = 0; c < C; ++c)
+            {
+                LinearExpr total_in_classroom_slot = 0;
+                for (int i = 0; i < I; ++i)
+                {
+                    for (int j = 0; j < J; ++j)
+                    {
+                        if (!eligible[i][j])
+                            continue;
+                        for (int k = 0; k < S[j]; ++k)
+                        {
+                            int r = data.courses[j].sections[k].required_periods;
+                            // any start m0 that covers m: m0 <= m <= m0 + r - 1
+                            for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                            {
+                                auto z_it = Z.find({i, j, k, l, m0, c});
+                                if (z_it != Z.end())
+                                {
+                                    total_in_classroom_slot += z_it->second;
+                                    per_course_sum[j] += z_it->second;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Mỗi lớp học chỉ có thể được sử dụng bởi tối đa 1 section tại mỗi time slot
+                model.AddLessOrEqual(total_in_classroom_slot, 1);
+            }
+
+            // per course per slot <= 1 (tính từ Y để đảm bảo không có 2 section cùng course trong cùng slot)
+            LinearExpr total_in_slot = 0;
             for (int i = 0; i < I; ++i)
             {
                 for (int j = 0; j < J; ++j)
@@ -235,23 +326,32 @@ InitialSolution construct_initial_solution(const ProblemData &data)
                     for (int k = 0; k < S[j]; ++k)
                     {
                         int r = data.courses[j].sections[k].required_periods;
-                        // any start m0 that covers m: m0 <= m <= m0 + r - 1
                         for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
                         {
                             auto it = Y.find({i, j, k, l, m0});
                             if (it != Y.end())
                             {
                                 total_in_slot += it->second;
-                                per_course_sum[j] += it->second;
-                                // We will also need teacher-per-slot; accumulate separately after this loop
                             }
                         }
                     }
                 }
             }
-            // classroom capacity
-            int cap = data.classrooms.Clm.at(data.classrooms.days[l]).at(data.classrooms.periods[m]);
-            model.AddLessOrEqual(total_in_slot, cap);
+            
+            // Fallback: nếu không có classrooms được định nghĩa, sử dụng Clm (tương thích ngược)
+            if (C == 0 && !data.classrooms.Clm.empty())
+            {
+                auto day_it = data.classrooms.Clm.find(data.classrooms.days[l]);
+                if (day_it != data.classrooms.Clm.end())
+                {
+                    auto period_it = day_it->second.find(data.classrooms.periods[m]);
+                    if (period_it != day_it->second.end())
+                    {
+                        int cap = period_it->second;
+                        model.AddLessOrEqual(total_in_slot, cap);
+                    }
+                }
+            }
 
             // per course per slot <= 1
             for (int j = 0; j < J; ++j)
@@ -369,21 +469,22 @@ InitialSolution construct_initial_solution(const ProblemData &data)
     InitialSolution sol;
     if (response.status() == CpSolverStatus::FEASIBLE || response.status() == CpSolverStatus::OPTIMAL)
     {
-        // Extract assignments from Y (start vars)
-        for (auto &entry : Y)
+        // Extract assignments from Z (classroom assignment vars) to get both schedule and classroom
+        for (auto &entry : Z)
         {
-            Key key = entry.first;
+            ZKey key = entry.first;
             const BoolVar &var = entry.second;
             if (SolutionBooleanValue(response, var))
             {
-                int i, j, k, l, m0;
-                tie(i, j, k, l, m0) = key;
+                int i, j, k, l, m0, c;
+                tie(i, j, k, l, m0, c) = key;
                 InitialSolution::Assignment a;
                 a.teacher_id = data.teachers[i].id;
                 a.course_id = data.courses[j].id;
                 a.section_id = data.courses[j].sections[k].id;
                 a.day = data.classrooms.days[l];
                 a.period = data.classrooms.periods[m0]; // start period
+                a.classroom_id = data.classrooms.classrooms[c].id;
                 sol.assignments.push_back(a);
             }
         }

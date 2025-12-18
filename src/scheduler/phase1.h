@@ -30,6 +30,7 @@ struct Section
 {
     string id;
     int required_periods = 1;
+    int required_seats = 0; // số lượng chỗ ngồi cần thiết
 };
 
 struct Course
@@ -42,11 +43,18 @@ struct Course
     vector<string> Ij; // eligible teacher ids sorted by preference
 };
 
+struct Classroom
+{
+    string id;
+    int capacity; // sức chứa của lớp học
+};
+
 struct ClassroomInfo
 {
     vector<string> days;
     vector<string> periods;
-    map<string, map<string, int>> Clm;
+    vector<Classroom> classrooms; // danh sách các lớp học với capacity
+    map<string, map<string, int>> Clm; // giữ lại để tương thích ngược (deprecated)
 };
 
 struct ProblemData

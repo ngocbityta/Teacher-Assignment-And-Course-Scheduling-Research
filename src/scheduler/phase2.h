@@ -8,6 +8,7 @@ struct InitialSolution {
         string section_id;
         string day;
         string period;
+        string classroom_id; // lớp học được phân bổ
     };
 
     std::vector<Assignment> assignments;

@@ -15,7 +15,6 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
 {
     try
     {
-
         auto body = req->getBody();
         if (body.empty())
         {
@@ -28,18 +27,12 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
         }
 
         json jin = json::parse(body);
-        LOG_INFO << "[Schedule] JSON parsed successfully";
 
         ProblemData data = initialize_problem_from_json(jin);
-        LOG_INFO << "[Schedule] ProblemData initialized: "
-                 << data.teachers.size() << " teachers, "
-                 << data.courses.size() << " courses";
 
         InitialSolution init = construct_initial_solution(data);
-        LOG_INFO << "[Schedule] Initial solution constructed";
 
         OptimalSolution opt = find_optimal_solution(data, init);
-        LOG_INFO << "[Schedule] Optimization finished. Objective value: " << opt.objective_value;
 
         // Build response JSON
         json jout;
@@ -56,6 +49,7 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
             ja["section_id"] = a.section_id;
             ja["day"] = a.day;
             ja["period"] = a.period;
+            ja["classroom_id"] = a.classroom_id;
             jout["solution"]["assignments"].push_back(ja);
         }
 
@@ -64,8 +58,6 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
         resp->setContentTypeCode(CT_APPLICATION_JSON);
         resp->setBody(jout.dump());
         callback(resp);
-
-        LOG_INFO << "[Schedule] Response sent to client";
     }
     catch (const exception &ex)
     {

@@ -2,6 +2,14 @@
   "classrooms": {
     "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
     "periods": ["1", "2", "3"],
+    "classrooms": [
+      { "id": "R101", "capacity": 50 },
+      { "id": "R102", "capacity": 40 },
+      { "id": "R103", "capacity": 30 },
+      { "id": "R201", "capacity": 60 },
+      { "id": "R202", "capacity": 45 },
+      { "id": "R203", "capacity": 35 }
+    ],
     "classrooms_per_slot": {
       "Mon": { "1": 3, "2": 3, "3": 3 },
       "Tue": { "1": 3, "2": 3, "3": 3 },
@@ -53,8 +61,8 @@
       "id": "MATH101",
       "name": "Calculus I",
       "sections": [
-        { "id": "S1", "required_periods": 2 },
-        { "id": "S2", "required_periods": 2 }
+        { "id": "S1", "required_periods": 2, "required_seats": 40 },
+        { "id": "S2", "required_periods": 2, "required_seats": 35 }
       ],
       "min_teachers": 1,
       "max_teachers": 2
@@ -63,9 +71,9 @@
       "id": "CS102",
       "name": "Introduction to Programming",
       "sections": [
-        { "id": "S1", "required_periods": 3 },
-        { "id": "S2", "required_periods": 3 },
-        { "id": "S3", "required_periods": 3 }
+        { "id": "S1", "required_periods": 3, "required_seats": 50 },
+        { "id": "S2", "required_periods": 3, "required_seats": 45 },
+        { "id": "S3", "required_periods": 3, "required_seats": 30 }
       ],
       "min_teachers": 1,
       "max_teachers": 3
@@ -73,7 +81,7 @@
     {
       "id": "ENG201",
       "name": "Academic Writing",
-      "sections": [{ "id": "S1", "required_periods": 2 }],
+      "sections": [{ "id": "S1", "required_periods": 2, "required_seats": 25 }],
       "min_teachers": 1,
       "max_teachers": 2
     }
