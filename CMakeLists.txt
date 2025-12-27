@@ -34,6 +34,7 @@ add_executable(teacher_scheduler
     src/main.cpp
     src/controller/TeacherSchedulerController.cpp
     src/controller/TestCaseController.cpp
+    src/controller/CPSatSchedulerController.cpp
     src/scheduler/phase1.cpp
     src/scheduler/phase2.cpp
     src/scheduler/phase3.cpp

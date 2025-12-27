@@ -1,0 +1,800 @@
+{
+  "description": "Test Case 18: Reverse-engineered from suboptimal schedule. Designed so Phase 2 finds a feasible but suboptimal solution that Phase 3 can improve through teacher swaps, time relocations, and load balancing.",
+  "classrooms": {
+    "days": [
+      "Fri",
+      "Mon",
+      "Thu",
+      "Tue",
+      "Wed"
+    ],
+    "periods": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "classrooms": [
+      {
+        "id": "R001",
+        "capacity": 50
+      },
+      {
+        "id": "R002",
+        "capacity": 50
+      },
+      {
+        "id": "R003",
+        "capacity": 50
+      },
+      {
+        "id": "R004",
+        "capacity": 50
+      },
+      {
+        "id": "R005",
+        "capacity": 50
+      },
+      {
+        "id": "R006",
+        "capacity": 50
+      },
+      {
+        "id": "R007",
+        "capacity": 50
+      },
+      {
+        "id": "R008",
+        "capacity": 50
+      },
+      {
+        "id": "R009",
+        "capacity": 50
+      },
+      {
+        "id": "R010",
+        "capacity": 50
+      }
+    ]
+  },
+  "teachers": [
+    {
+      "id": "T1",
+      "name": "Teacher T1",
+      "max_courses": 4,
+      "course_preferences": {
+        "C001": 5,
+        "C002": 6,
+        "C003": 7,
+        "C004": 9,
+        "C005": 8
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 4,
+          "6": 3,
+          "7": 2,
+          "8": 1
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 2,
+          "8": 1
+        },
+        "Wed": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Thu": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        }
+      },
+      "eligible_courses": [
+        "C001",
+        "C002",
+        "C003",
+        "C004",
+        "C005"
+      ]
+    },
+    {
+      "id": "T2",
+      "name": "Teacher T2",
+      "max_courses": 4,
+      "course_preferences": {
+        "C004": 9,
+        "C005": 8,
+        "C006": 7
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 8,
+          "2": 7,
+          "3": 6,
+          "4": 5,
+          "5": 4,
+          "6": 3,
+          "7": 2,
+          "8": 1
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Wed": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        }
+      },
+      "eligible_courses": [
+        "C004",
+        "C005",
+        "C006"
+      ]
+    },
+    {
+      "id": "T3",
+      "name": "Teacher T3",
+      "max_courses": 3,
+      "course_preferences": {
+        "C007": 5,
+        "C008": 6,
+        "C009": 7,
+        "C010": 9
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Tue": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        },
+        "Thu": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Fri": {
+          "1": 8,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 8,
+          "6": 7,
+          "7": 6,
+          "8": 5
+        }
+      },
+      "eligible_courses": [
+        "C007",
+        "C008",
+        "C009",
+        "C010"
+      ]
+    },
+    {
+      "id": "T4",
+      "name": "Teacher T4",
+      "max_courses": 3,
+      "course_preferences": {
+        "C007": 9,
+        "C010": 5,
+        "C011": 6
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Tue": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        },
+        "Thu": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Fri": {
+          "1": 8,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 8,
+          "6": 7,
+          "7": 6,
+          "8": 5
+        }
+      },
+      "eligible_courses": [
+        "C007",
+        "C010",
+        "C011"
+      ]
+    },
+    {
+      "id": "T5",
+      "name": "Teacher T5",
+      "max_courses": 3,
+      "course_preferences": {
+        "C012": 7,
+        "C013": 8,
+        "C014": 9
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Wed": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Thu": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        }
+      },
+      "eligible_courses": [
+        "C012",
+        "C013",
+        "C014"
+      ]
+    },
+    {
+      "id": "T6",
+      "name": "Teacher T6",
+      "max_courses": 2,
+      "course_preferences": {
+        "C015": 8,
+        "C016": 7
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Wed": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        }
+      },
+      "eligible_courses": [
+        "C015",
+        "C016"
+      ]
+    },
+    {
+      "id": "T7",
+      "name": "Teacher T7",
+      "max_courses": 3,
+      "course_preferences": {
+        "C017": 6,
+        "C018": 7,
+        "C019": 8,
+        "C020": 9
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        },
+        "Wed": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 5,
+          "6": 4,
+          "7": 3,
+          "8": 2
+        },
+        "Thu": {
+          "1": 8,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 8,
+          "6": 7,
+          "7": 6,
+          "8": 5
+        },
+        "Fri": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6,
+          "7": 5,
+          "8": 4
+        }
+      },
+      "eligible_courses": [
+        "C017",
+        "C018",
+        "C019",
+        "C020"
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "id": "C001",
+      "name": "Course C001",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        },
+        {
+          "id": "S2",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C002",
+      "name": "Course C002",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C003",
+      "name": "Course C003",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C004",
+      "name": "Course C004",
+      "sections": [
+        {
+          "id": "S2",
+          "required_periods": 2,
+          "required_seats": 50
+        },
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C005",
+      "name": "Course C005",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C006",
+      "name": "Course C006",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C007",
+      "name": "Course C007",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C008",
+      "name": "Course C008",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C009",
+      "name": "Course C009",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C010",
+      "name": "Course C010",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C011",
+      "name": "Course C011",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C012",
+      "name": "Course C012",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C013",
+      "name": "Course C013",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C014",
+      "name": "Course C014",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C015",
+      "name": "Course C015",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C016",
+      "name": "Course C016",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C017",
+      "name": "Course C017",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C018",
+      "name": "Course C018",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "C019",
+      "name": "Course C019",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    }
+  ]
+}

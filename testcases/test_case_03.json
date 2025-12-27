@@ -1,0 +1,1036 @@
+{
+  "description": "Test Case 3: Few teachers (6), many courses (18) - stress test for teacher constraints",
+  "classrooms": {
+    "days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "periods": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "classrooms": [
+      {
+        "id": "R101",
+        "capacity": 60
+      },
+      {
+        "id": "R102",
+        "capacity": 55
+      },
+      {
+        "id": "R201",
+        "capacity": 50
+      },
+      {
+        "id": "R202",
+        "capacity": 45
+      },
+      {
+        "id": "R001",
+        "capacity": 55
+      },
+      {
+        "id": "R002",
+        "capacity": 48
+      },
+      {
+        "id": "R003",
+        "capacity": 42
+      },
+      {
+        "id": "R004",
+        "capacity": 38
+      }
+    ]
+  },
+  "teachers": [
+    {
+      "id": "T1",
+      "name": "Super Teacher 1",
+      "max_courses": 5,
+      "course_preferences": {
+        "MATH101": 9,
+        "MATH102": 8,
+        "MATH201": 7,
+        "CS101": 9,
+        "CS102": 8,
+        "CS201": 7,
+        "CS202": 6,
+        "PHY101": 5
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 8,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "MATH101",
+        "MATH102",
+        "MATH201",
+        "CS101",
+        "CS102",
+        "CS201",
+        "CS202",
+        "PHY101"
+      ]
+    },
+    {
+      "id": "T2",
+      "name": "Super Teacher 2",
+      "max_courses": 5,
+      "course_preferences": {
+        "PHY101": 9,
+        "PHY102": 8,
+        "CHEM101": 9,
+        "CHEM102": 7,
+        "BIO101": 8,
+        "BIO102": 6,
+        "ENG101": 7,
+        "ENG102": 5
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 8,
+          "2": 7,
+          "3": 6,
+          "4": 5,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 7,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 8,
+          "2": 7,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "PHY101",
+        "PHY102",
+        "CHEM101",
+        "CHEM102",
+        "BIO101",
+        "BIO102",
+        "ENG101",
+        "ENG102"
+      ]
+    },
+    {
+      "id": "T3",
+      "name": "Super Teacher 3",
+      "max_courses": 4,
+      "course_preferences": {
+        "HIST101": 9,
+        "HIST102": 8,
+        "GEO101": 7,
+        "ECON101": 9,
+        "PSY101": 8,
+        "SOC101": 7,
+        "PHIL101": 6
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 8,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "HIST101",
+        "HIST102",
+        "GEO101",
+        "ECON101",
+        "PSY101",
+        "SOC101",
+        "PHIL101"
+      ]
+    },
+    {
+      "id": "T4",
+      "name": "Super Teacher 4",
+      "max_courses": 4,
+      "course_preferences": {
+        "BUS101": 9,
+        "ACC101": 8,
+        "FIN101": 7,
+        "MKT101": 6,
+        "MGMT101": 9,
+        "HR101": 8,
+        "OPM101": 7
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 7,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 8,
+          "2": 7,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "BUS101",
+        "ACC101",
+        "FIN101",
+        "MKT101",
+        "MGMT101",
+        "HR101",
+        "OPM101"
+      ]
+    },
+    {
+      "id": "T5",
+      "name": "Super Teacher 5",
+      "max_courses": 4,
+      "course_preferences": {
+        "ART101": 9,
+        "MUS101": 8,
+        "PE101": 7,
+        "HEALTH101": 6,
+        "CS301": 9,
+        "CS302": 8,
+        "CS401": 7
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 9,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 8,
+          "2": 9,
+          "3": 7,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "ART101",
+        "MUS101",
+        "PE101",
+        "HEALTH101",
+        "CS301",
+        "CS302",
+        "CS401"
+      ]
+    },
+    {
+      "id": "T6",
+      "name": "Super Teacher 6",
+      "max_courses": 5,
+      "course_preferences": {
+        "MATH201": 9,
+        "MATH301": 8,
+        "STAT101": 7,
+        "STAT102": 6,
+        "CS301": 9,
+        "CS302": 8,
+        "CS401": 7,
+        "CS402": 6
+      },
+      "day_time_preferences": {
+        "Mon": {
+          "1": 6,
+          "2": 7,
+          "3": 8,
+          "4": 9,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Tue": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Wed": {
+          "1": 8,
+          "2": 9,
+          "3": 8,
+          "4": 7,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Thu": {
+          "1": 7,
+          "2": 8,
+          "3": 9,
+          "4": 8,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        },
+        "Fri": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 5,
+          "7": 4,
+          "8": 3
+        }
+      },
+      "eligible_courses": [
+        "MATH201",
+        "MATH301",
+        "STAT101",
+        "STAT102",
+        "CS301",
+        "CS302",
+        "CS401",
+        "CS402"
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "id": "MATH101",
+      "name": "Calculus I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "MATH102",
+      "name": "Calculus II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "MATH201",
+      "name": "Linear Algebra",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "MATH301",
+      "name": "Advanced Math",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS101",
+      "name": "Programming",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 55
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "CS102",
+      "name": "Data Structures",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "CS201",
+      "name": "Algorithms",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS202",
+      "name": "Database",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS301",
+      "name": "OS",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS302",
+      "name": "Networks",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS401",
+      "name": "AI",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CS402",
+      "name": "ML",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 3,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "PHY101",
+      "name": "Physics I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 50
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "PHY102",
+      "name": "Physics II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 45
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CHEM101",
+      "name": "Chemistry I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "CHEM102",
+      "name": "Chemistry II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "BIO101",
+      "name": "Biology I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "BIO102",
+      "name": "Biology II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "ENG101",
+      "name": "English I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "ENG102",
+      "name": "English II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "HIST101",
+      "name": "History I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "HIST102",
+      "name": "History II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "GEO101",
+      "name": "Geography",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "ECON101",
+      "name": "Economics",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "PSY101",
+      "name": "Psychology",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "SOC101",
+      "name": "Sociology",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "PHIL101",
+      "name": "Philosophy",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "BUS101",
+      "name": "Business",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "ACC101",
+      "name": "Accounting",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "FIN101",
+      "name": "Finance",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "MKT101",
+      "name": "Marketing",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "MGMT101",
+      "name": "Management",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "HR101",
+      "name": "HR",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "OPM101",
+      "name": "Operations",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "ART101",
+      "name": "Art",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 25
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "MUS101",
+      "name": "Music",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 25
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "PE101",
+      "name": "PE",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "HEALTH101",
+      "name": "Health",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 1,
+          "required_seats": 30
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "STAT101",
+      "name": "Statistics I",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 40
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    },
+    {
+      "id": "STAT102",
+      "name": "Statistics II",
+      "sections": [
+        {
+          "id": "S1",
+          "required_periods": 2,
+          "required_seats": 35
+        }
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    }
+  ]
+}

@@ -1,0 +1,232 @@
+{
+  "description": "Test Case 19: Medium-small test case for Phase 3 accuracy testing. Increased complexity with more teachers, courses, and sections. Designed so Phase 2 finds FEASIBLE solution in 1 second that Phase 3 can improve through teacher swaps, time relocations, and load balancing.",
+  "classrooms": {
+    "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    "periods": ["1", "2", "3", "4", "5", "6", "7", "8"],
+    "classrooms": [
+      {"id": "R001", "capacity": 60},
+      {"id": "R002", "capacity": 55},
+      {"id": "R003", "capacity": 50},
+      {"id": "R004", "capacity": 45},
+      {"id": "R005", "capacity": 40},
+      {"id": "R006", "capacity": 35},
+      {"id": "R007", "capacity": 30}
+    ]
+  },
+  "teachers": [
+    {
+      "id": "T1",
+      "name": "Teacher 1",
+      "max_courses": 4,
+      "course_preferences": {
+        "C001": 4,
+        "C002": 5,
+        "C003": 9,
+        "C004": 8,
+        "C005": 7,
+        "C006": 6
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 4, "6": 3, "7": 2, "8": 1},
+        "Tue": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 5, "6": 4, "7": 3, "8": 2},
+        "Wed": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 6, "6": 5, "7": 4, "8": 3},
+        "Thu": {"1": 8, "2": 7, "3": 8, "4": 9, "5": 7, "6": 6, "7": 5, "8": 4},
+        "Fri": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 4, "6": 3, "7": 2, "8": 1}
+      },
+      "eligible_courses": ["C001", "C002", "C003", "C004", "C005", "C006"]
+    },
+    {
+      "id": "T2",
+      "name": "Teacher 2",
+      "max_courses": 4,
+      "course_preferences": {
+        "C001": 9,
+        "C002": 4,
+        "C003": 5,
+        "C004": 6,
+        "C005": 8,
+        "C007": 7
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 6, "2": 7, "3": 8, "4": 9, "5": 8, "6": 7, "7": 6, "8": 5},
+        "Tue": {"1": 7, "2": 6, "3": 7, "4": 8, "5": 9, "6": 8, "7": 7, "8": 6},
+        "Wed": {"1": 8, "2": 7, "3": 6, "4": 7, "5": 8, "6": 9, "7": 8, "8": 7},
+        "Thu": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6, "7": 5, "8": 4},
+        "Fri": {"1": 6, "2": 7, "3": 8, "4": 9, "5": 8, "6": 7, "7": 6, "8": 5}
+      },
+      "eligible_courses": ["C001", "C002", "C003", "C004", "C005", "C007"]
+    },
+    {
+      "id": "T3",
+      "name": "Teacher 3",
+      "max_courses": 3,
+      "course_preferences": {
+        "C004": 9,
+        "C005": 8,
+        "C006": 7,
+        "C007": 6,
+        "C008": 5
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4, "7": 3, "8": 2},
+        "Tue": {"1": 8, "2": 9, "3": 8, "4": 7, "5": 6, "6": 5, "7": 4, "8": 3},
+        "Wed": {"1": 7, "2": 8, "3": 9, "4": 8, "5": 7, "6": 6, "7": 5, "8": 4},
+        "Thu": {"1": 8, "2": 7, "3": 8, "4": 9, "5": 8, "6": 7, "7": 6, "8": 5},
+        "Fri": {"1": 9, "2": 8, "3": 7, "4": 6, "5": 5, "6": 4, "7": 3, "8": 2}
+      },
+      "eligible_courses": ["C004", "C005", "C006", "C007", "C008"]
+    },
+    {
+      "id": "T4",
+      "name": "Teacher 4",
+      "max_courses": 3,
+      "course_preferences": {
+        "C005": 9,
+        "C006": 8,
+        "C007": 7,
+        "C008": 6,
+        "C002": 5
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 5, "2": 6, "3": 7, "4": 8, "5": 9, "6": 8, "7": 7, "8": 6},
+        "Tue": {"1": 6, "2": 5, "3": 6, "4": 7, "5": 8, "6": 9, "7": 8, "8": 7},
+        "Wed": {"1": 7, "2": 6, "3": 5, "4": 6, "5": 7, "6": 8, "7": 9, "8": 8},
+        "Thu": {"1": 6, "2": 7, "3": 8, "4": 7, "5": 6, "6": 5, "7": 4, "8": 3},
+        "Fri": {"1": 5, "2": 6, "3": 7, "4": 8, "5": 9, "6": 8, "7": 7, "8": 6}
+      },
+      "eligible_courses": ["C005", "C006", "C007", "C008", "C002"]
+    },
+    {
+      "id": "T5",
+      "name": "Teacher 5",
+      "max_courses": 3,
+      "course_preferences": {
+        "C006": 9,
+        "C007": 8,
+        "C008": 7,
+        "C009": 6,
+        "C003": 5
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "6": 9, "7": 8, "8": 7},
+        "Tue": {"1": 5, "2": 4, "3": 5, "4": 6, "5": 7, "6": 8, "7": 9, "8": 8},
+        "Wed": {"1": 6, "2": 5, "3": 4, "4": 5, "5": 6, "6": 7, "7": 8, "8": 9},
+        "Thu": {"1": 5, "2": 6, "3": 7, "4": 6, "5": 5, "6": 4, "7": 3, "8": 2},
+        "Fri": {"1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "6": 9, "7": 8, "8": 7}
+      },
+      "eligible_courses": ["C006", "C007", "C008", "C009", "C003"]
+    },
+    {
+      "id": "T6",
+      "name": "Teacher 6",
+      "max_courses": 2,
+      "course_preferences": {
+        "C008": 9,
+        "C009": 8,
+        "C001": 7,
+        "C004": 6
+      },
+      "day_time_preferences": {
+        "Mon": {"1": 3, "2": 4, "3": 5, "4": 6, "5": 7, "6": 8, "7": 9, "8": 8},
+        "Tue": {"1": 4, "2": 3, "3": 4, "4": 5, "5": 6, "6": 7, "7": 8, "8": 9},
+        "Wed": {"1": 5, "2": 4, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8},
+        "Thu": {"1": 4, "2": 5, "3": 6, "4": 5, "5": 4, "6": 3, "7": 2, "8": 1},
+        "Fri": {"1": 3, "2": 4, "3": 5, "4": 6, "5": 7, "6": 8, "7": 9, "8": 8}
+      },
+      "eligible_courses": ["C008", "C009", "C001", "C004"]
+    }
+  ],
+  "courses": [
+    {
+      "id": "C001",
+      "name": "Course 1",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 50},
+        {"id": "S2", "required_periods": 2, "required_seats": 45},
+        {"id": "S3", "required_periods": 2, "required_seats": 40}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 3
+    },
+    {
+      "id": "C002",
+      "name": "Course 2",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 45},
+        {"id": "S2", "required_periods": 2, "required_seats": 40}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C003",
+      "name": "Course 3",
+      "sections": [
+        {"id": "S1", "required_periods": 3, "required_seats": 55},
+        {"id": "S2", "required_periods": 3, "required_seats": 50}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C004",
+      "name": "Course 4",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 40},
+        {"id": "S2", "required_periods": 2, "required_seats": 35}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C005",
+      "name": "Course 5",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 45},
+        {"id": "S2", "required_periods": 2, "required_seats": 40},
+        {"id": "S3", "required_periods": 2, "required_seats": 35}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 3
+    },
+    {
+      "id": "C006",
+      "name": "Course 6",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 40},
+        {"id": "S2", "required_periods": 2, "required_seats": 35}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C007",
+      "name": "Course 7",
+      "sections": [
+        {"id": "S1", "required_periods": 3, "required_seats": 50},
+        {"id": "S2", "required_periods": 3, "required_seats": 45}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C008",
+      "name": "Course 8",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 35},
+        {"id": "S2", "required_periods": 2, "required_seats": 30}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 2
+    },
+    {
+      "id": "C009",
+      "name": "Course 9",
+      "sections": [
+        {"id": "S1", "required_periods": 2, "required_seats": 30}
+      ],
+      "min_teachers": 1,
+      "max_teachers": 1
+    }
+  ]
+}

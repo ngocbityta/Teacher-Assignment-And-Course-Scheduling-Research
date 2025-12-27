@@ -31,8 +31,16 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
         ProblemData data = initialize_problem_from_json(jin);
 
         InitialSolution init = construct_initial_solution(data);
+        
+        int phase2_objective = evaluate_initial_solution(data, init);
 
         OptimalSolution opt = find_optimal_solution(data, init);
+        
+        cout << "\n========== Phase 3 Result Summary ==========" << endl;
+        cout << "  Objective value: " << opt.objective_value << endl;
+        cout << "  Improvement: " << (opt.objective_value - phase2_objective) << " (" 
+             << ((opt.objective_value - phase2_objective) * 100.0 / max(abs(phase2_objective), 1)) << "%)" << endl;
+        cout << "==============================================" << endl;
 
         // Build response JSON
         json jout;
@@ -71,4 +79,18 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
         resp->setBody(err.dump());
         callback(resp);
     }
+}
+
+void TeacherSchedulerController::health(const HttpRequestPtr &req,
+                                        function<void(const HttpResponsePtr &)> &&callback)
+{
+    json out;
+    out["status"] = "ok";
+    out["message"] = "alive";
+
+    auto resp = HttpResponse::newHttpResponse();
+    resp->setStatusCode(k200OK);
+    resp->setContentTypeCode(CT_APPLICATION_JSON);
+    resp->setBody(out.dump());
+    callback(resp);
 }

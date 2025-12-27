@@ -17,7 +17,7 @@ struct OptimalSolution {
     };
 
     vector<Assignment> assignments;
-    int objective_value = 0;
+    double objective_value = 0.0;
     OptimalSolution() = default;
     OptimalSolution(const InitialSolution &init) {
         assignments.clear();
@@ -29,3 +29,6 @@ struct OptimalSolution {
 
 // Hàm tìm phương án tối ưu sử dụng Simulated Annealing + Neighborhood Improvement
 OptimalSolution find_optimal_solution(const ProblemData& data, const InitialSolution& init_sol);
+
+// Hàm tính objective value cho InitialSolution (để so sánh với Phase 3)
+double evaluate_initial_solution(const ProblemData& data, const InitialSolution& init_sol);

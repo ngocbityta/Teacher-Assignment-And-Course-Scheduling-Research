@@ -71,6 +71,7 @@ WORKDIR /app
 COPY CMakeLists.txt .
 COPY src ./src
 COPY config.json .
+COPY testcases ./testcases
 
 # Create build directory and build
 RUN mkdir -p build && cd build && \
@@ -108,7 +109,9 @@ WORKDIR /app
 # Copy built binary and config
 COPY --from=builder /app/build/bin/teacher_scheduler .
 COPY --from=builder /app/config.json .
+COPY --from=builder /app/testcases ./testcases
 
 EXPOSE 8081
 
-CMD ["./teacher_scheduler"]
+CMD ["./teacher_scheduler", "--config=config.json"]
+

@@ -2,497 +2,625 @@
 #include "ortools/sat/cp_model.h"
 #include "ortools/sat/cp_model_solver.h"
 #include <iostream>
+#include <vector>
 #include <map>
 #include <tuple>
-#include <unordered_map>
-#include <vector>
 #include <algorithm>
+#include <random>
+#include <chrono>
+#include <unordered_set>
+#include <unordered_map>
+#include <cmath>
+#include <sstream>
 
 using namespace operations_research;
 using namespace operations_research::sat;
 using namespace std;
 
-void print_initial_solution(const InitialSolution &sol)
+static int get_required_seats(const ProblemData &data, const string &course_id, const string &section_id)
 {
-    if (sol.assignments.empty())
-    {
-        cout << "No assignments found in Phase2.\n";
-        return;
-    }
+    for (const auto &c : data.courses)
+        if (c.id == course_id)
+            for (const auto &s : c.sections)
+                if (s.id == section_id)
+                    return s.required_seats;
+    return 0;
+}
 
-    cout << "Phase2 Initial Solution:\n";
-    for (const auto &a : sol.assignments)
+static int get_required_periods_for_eval(const ProblemData &data, const string &course_id, const string &section_id)
+{
+    for (const auto &c : data.courses)
+        if (c.id == course_id)
+            for (const auto &s : c.sections)
+                if (s.id == section_id)
+                    return s.required_periods;
+    return 1;
+}
+
+static void extract_solution(const CpSolverResponse &response, const map<tuple<int,int,int,int,int>, BoolVar> &Y,
+                             const map<tuple<int,int,int,int,int,int>, BoolVar> &Y_room, const ProblemData &data,
+                             int R, InitialSolution &sol)
+{
+    for (auto &kv : Y)
     {
-        cout << "Teacher: " << a.teacher_id
-             << ", Course: " << a.course_id
-             << ", Section: " << a.section_id
-             << ", Day: " << a.day
-             << ", Start period: " << a.period << "\n";
+        if (SolutionBooleanValue(response, kv.second))
+        {
+            int i,j,k,l,m0;
+            tie(i,j,k,l,m0) = kv.first;
+            InitialSolution::Assignment a;
+            a.teacher_id = data.teachers[i].id;
+            a.course_id = data.courses[j].id;
+            a.section_id = data.courses[j].sections[k].id;
+            a.day = data.classrooms.days[l];
+            a.period = data.classrooms.periods[m0];
+            a.classroom_id = "";
+            
+            a.initial_teacher = a.teacher_id;
+            a.initial_timeslot = a.day + "|" + a.period;
+            
+            if (R > 0)
+                for (int room_idx = 0; room_idx < R; ++room_idx)
+                {
+                    auto it_room = Y_room.find({i,j,k,l,m0,room_idx});
+                    if (it_room != Y_room.end() && SolutionBooleanValue(response, it_room->second))
+                    {
+                        a.classroom_id = data.classrooms.classrooms[room_idx].id;
+                        break;
+                    }
+                }
+            sol.assignments.push_back(a);
+        }
     }
 }
 
-InitialSolution construct_initial_solution(const ProblemData &data)
+static double compute_diversity(const InitialSolution &sol1, const InitialSolution &sol2)
+{
+    if (sol1.assignments.size() != sol2.assignments.size())
+        return 1.0;
+    
+    if (sol1.assignments.empty())
+        return 0.0;
+    
+    map<pair<string, string>, pair<string, pair<string, string>>> map1, map2;
+    
+    for (const auto &a : sol1.assignments)
+        map1[{a.course_id, a.section_id}] = {a.teacher_id, {a.day, a.period}};
+    
+    for (const auto &a : sol2.assignments)
+        map2[{a.course_id, a.section_id}] = {a.teacher_id, {a.day, a.period}};
+    
+    int total = 0;
+    int teacher_diff = 0;
+    int timeslot_diff = 0;
+    
+    for (const auto &kv : map1)
+    {
+        auto it = map2.find(kv.first);
+        if (it == map2.end())
+        {
+            total++;
+            teacher_diff++;
+            timeslot_diff++;
+            continue;
+        }
+        
+        total++;
+        if (kv.second.first != it->second.first)
+            teacher_diff++;
+        if (kv.second.second != it->second.second)
+            timeslot_diff++;
+    }
+    
+    if (total == 0)
+        return 0.0;
+    
+    double teacher_diversity = (double)teacher_diff / total;
+    double timeslot_diversity = (double)timeslot_diff / total;
+    
+    return 0.5 * teacher_diversity + 0.5 * timeslot_diversity;
+}
+
+static bool is_solution_diverse_enough(
+    const InitialSolution &sol, 
+    const vector<InitialSolution> &pool,
+    double min_diversity = 0.1)
+{
+    for (const auto &prev : pool)
+    {
+        double diversity = compute_diversity(sol, prev);
+        if (diversity < min_diversity)
+            return false;
+    }
+    return true;
+}
+
+InitialSolution construct_initial_solution(
+    const ProblemData &data,
+    int random_seed,
+    bool shuffle_sections,
+    bool shuffle_teachers,
+    bool shuffle_timeslots)
 {
     CpModelBuilder model;
-
-    // ---------- indices and sizes ----------
     int I = (int)data.teachers.size();
     int J = (int)data.courses.size();
     int L = (int)data.classrooms.days.size();
     int M = (int)data.classrooms.periods.size();
-    int C = (int)data.classrooms.classrooms.size(); // số lượng lớp học
-
-    // sections per course
-    vector<int> S;
-    S.reserve(J);
+    vector<int> S(J);
     for (int j = 0; j < J; ++j)
-        S.push_back((int)data.courses[j].sections.size());
+        S[j] = (int)data.courses[j].sections.size();
 
-    // maps id -> index (useful for building outputs)
-    unordered_map<string, int> teacher_idx;
-    unordered_map<string, int> course_idx;
-    for (int i = 0; i < I; ++i)
-        teacher_idx[data.teachers[i].id] = i;
-    for (int j = 0; j < J; ++j)
-        course_idx[data.courses[j].id] = j;
-
-    // Build teacher time preference lookup: PT[i][l][m]
-    vector<vector<vector<int>>> PT(I, vector<vector<int>>(L, vector<int>(M, 0)));
-    for (int i = 0; i < I; ++i)
-    {
-        for (const auto &tp : data.teachers[i].time_pref)
-        {
-            int li = -1, mi = -1;
-            for (int l = 0; l < L; ++l)
-                if (data.classrooms.days[l] == tp.day)
-                {
-                    li = l;
-                    break;
-                }
-            for (int m = 0; m < M; ++m)
-                if (data.classrooms.periods[m] == tp.period)
-                {
-                    mi = m;
-                    break;
-                }
-            if (li >= 0 && mi >= 0)
-                PT[i][li][mi] = tp.score;
-        }
-    }
-
-    // Course preference PC[i][j]
-    vector<vector<int>> PC(I, vector<int>(J, 0));
-    for (int i = 0; i < I; ++i)
-    {
-        for (int j = 0; j < J; ++j)
-        {
-            const auto &cid = data.courses[j].id;
-            if (data.teachers[i].course_pref.count(cid))
-                PC[i][j] = data.teachers[i].course_pref.at(cid);
-        }
-    }
-
-    // Helper: teacher eligible table
     vector<vector<bool>> eligible(I, vector<bool>(J, false));
     for (int i = 0; i < I; ++i)
-    {
         for (int j = 0; j < J; ++j)
-        {
-            if (find(data.teachers[i].eligible_courses.begin(), data.teachers[i].eligible_courses.end(),
-                     data.courses[j].id) != data.teachers[i].eligible_courses.end())
-            {
-                eligible[i][j] = true;
-            }
-        }
-    }
+            eligible[i][j] = find(data.teachers[i].eligible_courses.begin(),
+                                  data.teachers[i].eligible_courses.end(),
+                                  data.courses[j].id) != data.teachers[i].eligible_courses.end();
 
-    // ---------- Variables ----------
-    // Y(i,j,k,l,m0) : teacher i starts section k of course j at day l, starting period m0
-    // We'll store in map keyed by tuple(i,j,k,l,m0)
-    using Key = tuple<int, int, int, int, int>;
+    using Key = tuple<int,int,int,int,int>;
     map<Key, BoolVar> Y;
+    int R = (int)data.classrooms.classrooms.size();
+    using RoomKey = tuple<int,int,int,int,int,int>;
+    map<RoomKey, BoolVar> Y_room;
 
-    for (int i = 0; i < I; ++i)
-    {
-        for (int j = 0; j < J; ++j)
-        {
-            if (!eligible[i][j])
-                continue;
-            for (int k = 0; k < S[j]; ++k)
-            {
-                int r = data.courses[j].sections[k].required_periods;
-                for (int l = 0; l < L; ++l)
-                {
-                    for (int m0 = 0; m0 < M; ++m0)
-                    {
-                        if (m0 + r - 1 < M)
-                        {
-                            string name = string("Y_t") + to_string(i) + "_c" + to_string(j) + "_s" + to_string(k) + "_d" + to_string(l) + "_m" + to_string(m0);
-                            Y[Key(i, j, k, l, m0)] = model.NewBoolVar().WithName(name);
-                            ;
-                        }
-                        // else m0 invalid start -> no var created
-                    }
-                }
-            }
-        }
-    }
-
-    // P(i,j) : teacher i teaches course j (binary), create only for eligible combos
-    map<pair<int, int>, BoolVar> P;
     for (int i = 0; i < I; ++i)
         for (int j = 0; j < J; ++j)
             if (eligible[i][j])
-            {
-                string name = "P_t" + to_string(i) + "_c" + to_string(j);
-                P[{i, j}] = model.NewBoolVar().WithName(name);
-            }
-
-    // Z(i,j,k,l,m0,c) : teacher i starts section k of course j at day l, starting period m0, assigned to classroom c
-    // Key: (i, j, k, l, m0, c)
-    using ZKey = tuple<int, int, int, int, int, int>;
-    map<ZKey, BoolVar> Z;
-
-    for (int i = 0; i < I; ++i)
-    {
-        for (int j = 0; j < J; ++j)
-        {
-            if (!eligible[i][j])
-                continue;
-            for (int k = 0; k < S[j]; ++k)
-            {
-                int r = data.courses[j].sections[k].required_periods;
-                int required_seats = data.courses[j].sections[k].required_seats;
-                for (int l = 0; l < L; ++l)
+                for (int k = 0; k < S[j]; ++k)
                 {
-                    for (int m0 = 0; m0 < M; ++m0)
-                    {
-                        if (m0 + r - 1 < M)
+                    int r = data.courses[j].sections[k].required_periods;
+                    int seats = data.courses[j].sections[k].required_seats;
+                    for (int l = 0; l < L; ++l)
+                        for (int m0 = 0; m0 + r <= M; ++m0)
                         {
-                            // Chỉ tạo biến Z cho các lớp học có đủ capacity
-                            for (int c = 0; c < C; ++c)
-                            {
-                                if (data.classrooms.classrooms[c].capacity >= required_seats)
-                                {
-                                    string name = string("Z_t") + to_string(i) + "_c" + to_string(j) + "_s" + to_string(k) + "_d" + to_string(l) + "_m" + to_string(m0) + "_room" + to_string(c);
-                                    Z[ZKey(i, j, k, l, m0, c)] = model.NewBoolVar().WithName(name);
-                                }
-                            }
+                            Y[{i,j,k,l,m0}] = model.NewBoolVar();
+                            if (R > 0)
+                                for (int room_idx = 0; room_idx < R; ++room_idx)
+                                    if (data.classrooms.classrooms[room_idx].capacity >= seats)
+                                        Y_room[{i,j,k,l,m0,room_idx}] = model.NewBoolVar();
                         }
-                    }
                 }
-            }
-        }
-    }
 
-    // ---------- Constraints ----------
-
-    // 1) Each section must be scheduled exactly once (one teacher, one day, one start)
     for (int j = 0; j < J; ++j)
-    {
         for (int k = 0; k < S[j]; ++k)
         {
-            LinearExpr sumStarts;
+            LinearExpr sum = 0;
             for (int i = 0; i < I; ++i)
-            {
-                if (!eligible[i][j])
-                    continue;
-                for (int l = 0; l < L; ++l)
-                    for (int m0 = 0; m0 < M; ++m0)
-                    {
-                        auto it = Y.find({i, j, k, l, m0});
-                        if (it != Y.end())
-                            sumStarts += it->second;
-                    }
-            }
-            model.AddEquality(sumStarts, 1);
-        }
-    }
-
-    // 1a) Link Y and Z: if Y(i,j,k,l,m0) = 1, then exactly one Z(i,j,k,l,m0,c) = 1
-    for (auto &y_entry : Y)
-    {
-        Key y_key = y_entry.first;
-        int i, j, k, l, m0;
-        tie(i, j, k, l, m0) = y_key;
-        int required_seats = data.courses[j].sections[k].required_seats;
-        
-        LinearExpr sumZ = 0;
-        for (int c = 0; c < C; ++c)
-        {
-            if (data.classrooms.classrooms[c].capacity >= required_seats)
-            {
-                auto z_it = Z.find({i, j, k, l, m0, c});
-                if (z_it != Z.end())
-                    sumZ += z_it->second;
-            }
-        }
-        // Y[i,j,k,l,m0] == sum_c Z[i,j,k,l,m0,c]
-        model.AddEquality(y_entry.second, sumZ);
-    }
-
-    // 2) Link P and Y: if any Y(i,j,k,.,.) = 1 => P(i,j) = 1, and if P=1 then sumY >= 1
-    for (int i = 0; i < I; ++i)
-        for (int j = 0; j < J; ++j)
-            if (eligible[i][j])
-            {
-                LinearExpr sumY_ij;
-                for (int k = 0; k < S[j]; ++k)
+                if (eligible[i][j])
                     for (int l = 0; l < L; ++l)
                         for (int m0 = 0; m0 < M; ++m0)
                         {
-                            auto it = Y.find({i, j, k, l, m0});
+                            auto it = Y.find({i,j,k,l,m0});
                             if (it != Y.end())
-                                sumY_ij += it->second;
+                                sum += it->second;
                         }
-                // sumY_ij <= S[j] * P[i,j]
-                model.AddLessOrEqual(sumY_ij, LinearExpr(P[{i, j}]) * S[j]);
-                // sumY_ij >= P[i,j]
-                model.AddGreaterOrEqual(sumY_ij, P[{i, j}]);
-            }
-
-    // 3) Teacher max/min courses: sum_j P[i,j] <= max_courses, each teacher must teach >=1
-    for (int i = 0; i < I; ++i)
-    {
-        LinearExpr sumP;
-        for (int j = 0; j < J; ++j)
-            if (eligible[i][j])
-                sumP += P[{i, j}];
-        model.AddGreaterOrEqual(sumP, 1);
-        model.AddLessOrEqual(sumP, data.teachers[i].max_courses);
-    }
-
-    // 4) Each course must be taught by at least min_teachers, at most max_teachers
-    for (int j = 0; j < J; ++j)
-    {
-        LinearExpr sum_teachers = 0;
-        for (int i = 0; i < I; ++i)
-        {
-            if (eligible[i][j])
-                sum_teachers += P[{i, j}];
+            model.AddEquality(sum, 1);
         }
-        model.AddGreaterOrEqual(sum_teachers, data.courses[j].min_teachers);
-        model.AddLessOrEqual(sum_teachers, data.courses[j].max_teachers);
-    }
-
-    // 5) Classroom capacity & teacher single-slot & course-per-time constraints:
-    // For every (l,m) and every classroom c, we compute occupancy by summing Z that cover (l,m) and use classroom c
-    for (int l = 0; l < L; ++l)
-        for (int m = 0; m < M; ++m)
-        {
-            // For course-per-slot restriction: for each course j ensure at most 1 section of this course in (l,m)
-            vector<LinearExpr> per_course_sum(J);
+    
+    if (R > 0)
+    {
+        for (int i = 0; i < I; ++i)
             for (int j = 0; j < J; ++j)
-                per_course_sum[j] = LinearExpr(0);
-
-            // For each classroom, check capacity constraint
-            for (int c = 0; c < C; ++c)
-            {
-                LinearExpr total_in_classroom_slot = 0;
-                for (int i = 0; i < I; ++i)
-                {
-                    for (int j = 0; j < J; ++j)
-                    {
-                        if (!eligible[i][j])
-                            continue;
-                        for (int k = 0; k < S[j]; ++k)
-                        {
-                            int r = data.courses[j].sections[k].required_periods;
-                            // any start m0 that covers m: m0 <= m <= m0 + r - 1
-                            for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
-                            {
-                                auto z_it = Z.find({i, j, k, l, m0, c});
-                                if (z_it != Z.end())
-                                {
-                                    total_in_classroom_slot += z_it->second;
-                                    per_course_sum[j] += z_it->second;
-                                }
-                            }
-                        }
-                    }
-                }
-                // Mỗi lớp học chỉ có thể được sử dụng bởi tối đa 1 section tại mỗi time slot
-                model.AddLessOrEqual(total_in_classroom_slot, 1);
-            }
-
-            // per course per slot <= 1 (tính từ Y để đảm bảo không có 2 section cùng course trong cùng slot)
-            LinearExpr total_in_slot = 0;
-            for (int i = 0; i < I; ++i)
-            {
-                for (int j = 0; j < J; ++j)
-                {
-                    if (!eligible[i][j])
-                        continue;
+                if (eligible[i][j])
                     for (int k = 0; k < S[j]; ++k)
                     {
                         int r = data.courses[j].sections[k].required_periods;
-                        for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
-                        {
-                            auto it = Y.find({i, j, k, l, m0});
-                            if (it != Y.end())
+                        for (int l = 0; l < L; ++l)
+                            for (int m0 = 0; m0 + r <= M; ++m0)
                             {
-                                total_in_slot += it->second;
+                                auto it_y = Y.find({i,j,k,l,m0});
+                                if (it_y == Y.end()) continue;
+                                LinearExpr room_sum = 0;
+                                for (int room_idx = 0; room_idx < R; ++room_idx)
+                                {
+                                    auto it_room = Y_room.find({i,j,k,l,m0,room_idx});
+                                    if (it_room != Y_room.end())
+                                        room_sum += it_room->second;
+                                }
+                                model.AddEquality(room_sum, it_y->second);
                             }
-                        }
                     }
-                }
-            }
-            
-            // Fallback: nếu không có classrooms được định nghĩa, sử dụng Clm (tương thích ngược)
-            if (C == 0 && !data.classrooms.Clm.empty())
-            {
-                auto day_it = data.classrooms.Clm.find(data.classrooms.days[l]);
-                if (day_it != data.classrooms.Clm.end())
-                {
-                    auto period_it = day_it->second.find(data.classrooms.periods[m]);
-                    if (period_it != day_it->second.end())
-                    {
-                        int cap = period_it->second;
-                        model.AddLessOrEqual(total_in_slot, cap);
-                    }
-                }
-            }
+    }
 
-            // per course per slot <= 1
-            for (int j = 0; j < J; ++j)
-            {
-                model.AddLessOrEqual(per_course_sum[j], 1);
-            }
-        }
-
-    // 6) Each teacher at most 1 section per time slot (enforce by summing Y that cover slot for that teacher)
     for (int i = 0; i < I; ++i)
-    {
         for (int l = 0; l < L; ++l)
             for (int m = 0; m < M; ++m)
             {
-                LinearExpr teacher_slot = 0;
+                LinearExpr load = 0;
                 for (int j = 0; j < J; ++j)
-                {
-                    if (!eligible[i][j])
-                        continue;
-                    for (int k = 0; k < S[j]; ++k)
-                    {
-                        int r = data.courses[j].sections[k].required_periods;
-                        for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                    if (eligible[i][j])
+                        for (int k = 0; k < S[j]; ++k)
                         {
-                            auto it = Y.find({i, j, k, l, m0});
-                            if (it != Y.end())
-                                teacher_slot += it->second;
+                            int r = data.courses[j].sections[k].required_periods;
+                            for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                            {
+                                auto it = Y.find({i,j,k,l,m0});
+                                if (it != Y.end())
+                                    load += it->second;
+                            }
                         }
-                    }
-                }
-                model.AddLessOrEqual(teacher_slot, 1);
+                model.AddLessOrEqual(load, 1);
             }
-    }
 
-    // 7) Each teacher schedule should be spread evenly over days (add penalty when overloaded)
-
-    vector<int> total_sections(I, 0);
-    for (int i = 0; i < I; ++i)
+    if (R > 0)
     {
         for (int j = 0; j < J; ++j)
-        {
-            if (!eligible[i][j])
-                continue;
-            total_sections[i] += S[j];
-        }
-    }
-
-    map<pair<int, int>, IntVar> overload;
-    for (int i = 0; i < I; ++i)
-    {
-        int avg = (total_sections[i] + L - 1) / L;
-        for (int l = 0; l < L; ++l)
-        {
-            LinearExpr sections_on_day = 0;
-            for (int j = 0; j < J; ++j)
+            for (int k = 0; k < S[j]; ++k)
             {
-                if (!eligible[i][j])
-                    continue;
-                for (int k = 0; k < S[j]; ++k)
-                    for (int m0 = 0; m0 < M; ++m0)
+                int seats = data.courses[j].sections[k].required_seats;
+                for (int i = 0; i < I; ++i)
+                    if (eligible[i][j])
                     {
-                        auto it = Y.find({i, j, k, l, m0});
-                        if (it != Y.end())
-                            sections_on_day += it->second;
+                        int r = data.courses[j].sections[k].required_periods;
+                        for (int l = 0; l < L; ++l)
+                            for (int m0 = 0; m0 + r <= M; ++m0)
+                                for (int room_idx = 0; room_idx < R; ++room_idx)
+                                    if (data.classrooms.classrooms[room_idx].capacity < seats)
+                                    {
+                                        auto it_room = Y_room.find({i,j,k,l,m0,room_idx});
+                                        if (it_room != Y_room.end())
+                                            model.AddEquality(it_room->second, 0);
+                                    }
                     }
             }
-
-            Domain d = Domain(0, total_sections[i]);
-
-            overload[{i, l}] = model.NewIntVar(d).WithName(
-                "overload_t" + to_string(i) + "_d" + to_string(l));
-            model.AddGreaterOrEqual(overload[{i, l}], sections_on_day - avg);
-        }
-    }
-
-    // ---------- Objective ----------
-    // Maximize sum(PC[i][j] * P[i][j]) + sum_over_Y (sum_{t in covered periods} PT[i][l][t]) * Y
-    LinearExpr objective;
-    for (const auto &entry : P)
-    {
-        int i = entry.first.first;
-        int j = entry.first.second;
-        objective += LinearExpr(entry.second) * PC[i][j];
-    }
-    // time-pref contribution: for each Y, sum PT over each occupied period and weight by Y
-    for (auto &it : Y)
-    {
-        Key key = it.first;
-        int i, j, k, l, m0;
-        tie(i, j, k, l, m0) = key;
-        int r = data.courses[j].sections[k].required_periods;
-        int sumPT = 0;
-        for (int t = 0; t < r; ++t)
-        {
-            int m = m0 + t;
-            sumPT += PT[i][l][m];
-        }
-        objective += LinearExpr(it.second) * sumPT;
-    }
-    for (auto &entry : overload)
-    {
-        objective -= entry.second;
-    }
-
-    model.Maximize(objective);
-
-    // ---------- Solve with solver parameters ----------
-    Model sat_model;
-    sat_model.Add(NewSatParameters("max_time_in_seconds:30 num_search_workers:8 log_search_progress: false"));
-
-    auto response = SolveCpModel(model.Build(), &sat_model);
-
-    cout << "Phase2 solver status: " << CpSolverStatus_Name(response.status()) << "\n";
-
-    InitialSolution sol;
-    if (response.status() == CpSolverStatus::FEASIBLE || response.status() == CpSolverStatus::OPTIMAL)
-    {
-        // Extract assignments from Z (classroom assignment vars) to get both schedule and classroom
-        for (auto &entry : Z)
-        {
-            ZKey key = entry.first;
-            const BoolVar &var = entry.second;
-            if (SolutionBooleanValue(response, var))
-            {
-                int i, j, k, l, m0, c;
-                tie(i, j, k, l, m0, c) = key;
-                InitialSolution::Assignment a;
-                a.teacher_id = data.teachers[i].id;
-                a.course_id = data.courses[j].id;
-                a.section_id = data.courses[j].sections[k].id;
-                a.day = data.classrooms.days[l];
-                a.period = data.classrooms.periods[m0]; // start period
-                a.classroom_id = data.classrooms.classrooms[c].id;
-                sol.assignments.push_back(a);
-            }
-        }
+        
+        for (int room_idx = 0; room_idx < R; ++room_idx)
+            for (int l = 0; l < L; ++l)
+                for (int m = 0; m < M; ++m)
+                {
+                    LinearExpr room_load = 0;
+                    for (int i = 0; i < I; ++i)
+                        for (int j = 0; j < J; ++j)
+                            if (eligible[i][j])
+                                for (int k = 0; k < S[j]; ++k)
+                                {
+                                    int r = data.courses[j].sections[k].required_periods;
+                                    for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                                    {
+                                        if (m0 + r > M) continue;
+                                        auto it_room = Y_room.find({i,j,k,l,m0,room_idx});
+                                        if (it_room != Y_room.end())
+                                            room_load += it_room->second;
+                                    }
+                                }
+                    model.AddLessOrEqual(room_load, 1);
+                }
     }
     else
     {
-        cout << "No feasible solution found in Phase2.\n";
+        int max_cap = 0;
+        for (auto &c : data.classrooms.classrooms)
+            max_cap = max(max_cap, c.capacity);
+        for (int j = 0; j < J; ++j)
+            for (int k = 0; k < S[j]; ++k)
+                if (data.courses[j].sections[k].required_seats > max_cap && max_cap > 0)
+                    for (int i = 0; i < I; ++i)
+                        for (int l = 0; l < L; ++l)
+                            for (int m0 = 0; m0 < M; ++m0)
+                            {
+                                auto it = Y.find({i,j,k,l,m0});
+                                if (it != Y.end())
+                                    model.AddEquality(it->second, 0);
+                            }
     }
 
-    return sol;
+    for (int j = 0; j < J; ++j)
+    {
+        int min_t = data.courses[j].min_teachers;
+        int max_t = data.courses[j].max_teachers;
+        int eligible_count = 0;
+        for (int i = 0; i < I; ++i)
+            if (eligible[i][j]) eligible_count++;
+        
+        if (min_t > 0 || (max_t > 0 && max_t < eligible_count))
+        {
+            map<int, BoolVar> teacher_indicator;
+            for (int i = 0; i < I; ++i)
+            {
+                if (!eligible[i][j]) continue;
+                BoolVar indicator = model.NewBoolVar();
+                teacher_indicator[i] = indicator;
+                LinearExpr sum = 0;
+                for (int k = 0; k < S[j]; ++k)
+                {
+                    int r = data.courses[j].sections[k].required_periods;
+                    for (int l = 0; l < L; ++l)
+                        for (int m0 = 0; m0 + r <= M; ++m0)
+                        {
+                            auto it = Y.find({i,j,k,l,m0});
+                            if (it != Y.end())
+                                sum += it->second;
+                        }
+                }
+                model.AddGreaterOrEqual(sum, indicator);
+                model.AddLessOrEqual(sum, S[j] * L * M * indicator);
+            }
+            LinearExpr total = 0;
+            for (auto &kv : teacher_indicator)
+                total += kv.second;
+            if (min_t > 0) model.AddGreaterOrEqual(total, min_t);
+            if (max_t > 0 && max_t < eligible_count) model.AddLessOrEqual(total, max_t);
+        }
+    }
+    
+    for (int j = 0; j < J; ++j)
+    {
+        if (S[j] <= 1) continue;
+        for (int l = 0; l < L; ++l)
+            for (int m = 0; m < M; ++m)
+            {
+                LinearExpr sections = 0;
+                for (int k = 0; k < S[j]; ++k)
+                {
+                    int r = data.courses[j].sections[k].required_periods;
+                    for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                    {
+                        if (m0 + r > M) continue;
+                        for (int i = 0; i < I; ++i)
+                        {
+                            if (!eligible[i][j]) continue;
+                            auto it = Y.find({i,j,k,l,m0});
+                            if (it != Y.end())
+                                sections += it->second;
+                        }
+                    }
+                }
+                model.AddLessOrEqual(sections, 1);
+            }
+    }
+
+    Model sat_model;
+    ostringstream param_stream;
+    param_stream << "max_time_in_seconds:60 "
+                 << "num_search_workers:1 "
+                 << "log_search_progress:false "
+                 << "cp_model_presolve:true "
+                 << "stop_after_first_solution:true "
+                 << "random_seed:" << random_seed;
+    sat_model.Add(NewSatParameters(param_stream.str()));
+    auto response = SolveCpModel(model.Build(), &sat_model);
+    
+    cout << "[Phase2] Status: " << CpSolverStatus_Name(response.status()) << endl;
+    
+    if (response.status() == CpSolverStatus::FEASIBLE || response.status() == CpSolverStatus::OPTIMAL)
+    {
+        InitialSolution sol;
+        extract_solution(response, Y, Y_room, data, R, sol);
+        cout << "[Phase2] Found feasible solution (seed=" << random_seed 
+             << ", leaving optimization space for Phase 3)" << endl;
+        return sol;
+    }
+    
+    cout << "[Phase2] No feasible solution found (seed=" << random_seed << ").\n";
+    return InitialSolution();
+}
+
+static double compute_adaptive_diversity_threshold(int num_sections)
+{
+    if (num_sections <= 10)
+        return 0.15;
+    else if (num_sections <= 30)
+        return 0.1;
+    else
+        return 0.05;
+}
+
+vector<InitialSolution> generate_solution_pool(
+    const ProblemData &data,
+    int K,
+    double min_diversity,
+    int max_solutions)
+{
+    vector<InitialSolution> pool;
+    mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+    uniform_int_distribution<int> seed_dist(1, 1000000);
+    
+    if (min_diversity < 0)
+    {
+        int total_sections = 0;
+        for (const auto &c : data.courses)
+            total_sections += (int)c.sections.size();
+        min_diversity = compute_adaptive_diversity_threshold(total_sections);
+    }
+    
+    cout << "[Phase2] Generating solution pool (K=" << K 
+         << ", min_diversity=" << min_diversity 
+         << ", max_solutions=" << max_solutions << ")\n";
+    
+    int attempts = 0;
+    int found = 0;
+    
+    while (attempts < K && (int)pool.size() < max_solutions)
+    {
+        attempts++;
+        int random_seed = seed_dist(rng);
+        
+        cout << "[Phase2] Attempt " << attempts << "/" << K 
+             << " (seed=" << random_seed << ")... ";
+        
+        InitialSolution sol = construct_initial_solution(data, random_seed);
+        
+        if (sol.assignments.empty())
+        {
+            cout << "No feasible solution\n";
+            continue;
+        }
+        
+        found++;
+        
+        if (is_solution_diverse_enough(sol, pool, min_diversity))
+        {
+            pool.push_back(sol);
+            cout << "Added to pool (diversity OK, pool_size=" << pool.size() << ")\n";
+        }
+        else
+        {
+            cout << "Rejected (too similar to existing solutions)\n";
+        }
+    }
+    
+    cout << "[Phase2] Pool generation complete: " << found << " feasible found, "
+         << pool.size() << " diverse solutions in pool\n";
+    
+    return pool;
+}
+
+vector<InitialSolution> select_diverse_solutions(
+    const vector<InitialSolution> &pool,
+    int N)
+{
+    if (pool.empty() || N <= 0)
+        return {};
+    
+    if ((int)pool.size() <= N)
+        return pool;
+    
+    vector<InitialSolution> selected;
+    vector<bool> used(pool.size(), false);
+    
+    mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+    uniform_int_distribution<int> dist(0, (int)pool.size() - 1);
+    int first_idx = dist(rng);
+    selected.push_back(pool[first_idx]);
+    used[first_idx] = true;
+    
+    for (int i = 1; i < N && (int)selected.size() < N; ++i)
+    {
+        int best_idx = -1;
+        double best_score = -1.0;
+        
+        for (size_t j = 0; j < pool.size(); ++j)
+        {
+            if (used[j])
+                continue;
+            
+            double total_diversity = 0.0;
+            for (const auto &sel : selected)
+            {
+                total_diversity += compute_diversity(pool[j], sel);
+            }
+            
+            if (total_diversity > best_score)
+            {
+                best_score = total_diversity;
+                best_idx = j;
+            }
+        }
+        
+        if (best_idx >= 0)
+        {
+            selected.push_back(pool[best_idx]);
+            used[best_idx] = true;
+        }
+    }
+    
+    return selected;
+}
+
+InitialSolution assign_rooms_phase2(const ProblemData &data, const InitialSolution &initial)
+{
+    InitialSolution result = initial;
+    mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+    
+    for (auto &a : result.assignments)
+        if (a.classroom_id.empty())
+        {
+            int seats = get_required_seats(data, a.course_id, a.section_id);
+            
+            vector<string> feasible_rooms;
+            for (const auto &room : data.classrooms.classrooms)
+                if (room.capacity >= seats)
+                    feasible_rooms.push_back(room.id);
+            
+            if (!feasible_rooms.empty())
+            {
+                uniform_int_distribution<int> dist(0, (int)feasible_rooms.size() - 1);
+                a.classroom_id = feasible_rooms[dist(rng)];
+            }
+        }
+    return result;
+}
+
+static double compute_stddev_simple(const vector<int> &vals)
+{
+    if (vals.empty())
+        return 0.0;
+    double mean = 0.0;
+    for (int v : vals)
+        mean += v;
+    mean /= vals.size();
+    
+    double variance = 0.0;
+    for (int v : vals)
+        variance += (v - mean) * (v - mean);
+    variance /= vals.size();
+    
+    return sqrt(variance);
+}
+
+double evaluate_phase2_solution_quick(
+    const InitialSolution &sol,
+    const ProblemData &data)
+{
+    if (sol.assignments.empty())
+        return 0.0;
+    
+    unordered_map<string, int> teacher_periods;
+    
+    for (const auto &a : sol.assignments)
+    {
+        int required_periods = get_required_periods_for_eval(data, a.course_id, a.section_id);
+        teacher_periods[a.teacher_id] += required_periods;
+    }
+    
+    if (teacher_periods.empty())
+        return 0.0;
+    
+    vector<int> workloads;
+    for (const auto &tp : teacher_periods)
+        workloads.push_back(tp.second);
+    
+    double workload_stddev = compute_stddev_simple(workloads);
+    double max_workload = *max_element(workloads.begin(), workloads.end());
+    
+    double workload_score = 0.0;
+    if (max_workload > 0)
+        workload_score = max(0.0, 1.0 - (workload_stddev / max_workload));
+    else
+        workload_score = 1.0;
+    
+    unordered_set<string> used_timeslots;
+    for (const auto &a : sol.assignments)
+    {
+        string timeslot = a.day + "|" + a.period;
+        used_timeslots.insert(timeslot);
+    }
+    
+    int total_timeslots = data.classrooms.days.size() * data.classrooms.periods.size();
+    if (total_timeslots == 0)
+        return 0.0;
+    
+    double utilization = (double)used_timeslots.size() / total_timeslots;
+    double timeslot_score = 0.0;
+    if (utilization < 0.3)
+        timeslot_score = utilization / 0.3;
+    else if (utilization <= 0.7)
+        timeslot_score = 1.0;
+    else
+        timeslot_score = 1.0 - (utilization - 0.7) / 0.3;
+    
+    timeslot_score = max(0.0, min(1.0, timeslot_score));
+    
+    double final_score = 0.6 * workload_score + 0.4 * timeslot_score;
+    
+    return final_score;
+}
+
+bool is_phase2_solution_good_enough(
+    const InitialSolution &sol,
+    const ProblemData &data,
+    double min_score)
+{
+    double score = evaluate_phase2_solution_quick(sol, data);
+    return score >= min_score;
 }
