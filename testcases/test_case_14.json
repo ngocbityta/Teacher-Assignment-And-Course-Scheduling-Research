@@ -138,6 +138,46 @@
       {
         "id": "R030",
         "capacity": 55
+      },
+      {
+        "id": "R031",
+        "capacity": 100
+      },
+      {
+        "id": "R032",
+        "capacity": 100
+      },
+      {
+        "id": "R033",
+        "capacity": 100
+      },
+      {
+        "id": "R034",
+        "capacity": 100
+      },
+      {
+        "id": "R035",
+        "capacity": 100
+      },
+      {
+        "id": "R036",
+        "capacity": 100
+      },
+      {
+        "id": "R037",
+        "capacity": 100
+      },
+      {
+        "id": "R038",
+        "capacity": 100
+      },
+      {
+        "id": "R039",
+        "capacity": 100
+      },
+      {
+        "id": "R040",
+        "capacity": 100
       }
     ]
   },

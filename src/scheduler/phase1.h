@@ -6,61 +6,60 @@
 #include <map>
 
 using json = nlohmann::json;
-using namespace std;
 
 struct TimePref
 {
-    string day;
-    string period;
+    std::string day;
+    std::string period;
     int score;
 };
 
 struct Teacher
 {
-    string id;
-    string name;
+    std::string id;
+    std::string name;
     int max_courses = 1;
-    map<string, int> course_pref;
-    vector<TimePref> time_pref;
-    vector<string> eligible_courses;
-    vector<TimePref> LMi;
+    int max_periods = 0; // 0 means no limit (HARD CONSTRAINT)
+    std::map<std::string, int> course_pref;
+    std::vector<TimePref> time_pref;
+    std::vector<std::string> eligible_courses;
+    std::vector<TimePref> LMi;
 };
 
 struct Section
 {
-    string id;
+    std::string id;
     int required_periods = 1;
     int required_seats = 0; // số lượng chỗ ngồi cần thiết
 };
 
 struct Course
 {
-    string id;
-    string name;
-    vector<Section> sections;
+    std::string id;
+    std::string name;
+    std::vector<Section> sections;
     int min_teachers = 1;
     int max_teachers = 1;
-    vector<string> Ij; // eligible teacher ids sorted by preference
+    std::vector<std::string> Ij; // eligible teacher ids sorted by preference
 };
 
 struct Classroom
 {
-    string id;
+    std::string id;
     int capacity; // sức chứa của lớp học
 };
 
 struct ClassroomInfo
 {
-    vector<string> days;
-    vector<string> periods;
-    vector<Classroom> classrooms; // danh sách các lớp học với capacity
-    map<string, map<string, int>> Clm; // giữ lại để tương thích ngược (deprecated)
+    std::vector<std::string> days;
+    std::vector<std::string> periods;
+    std::vector<Classroom> classrooms; // danh sách các lớp học với capacity
 };
 
 struct ProblemData
 {
-    vector<Teacher> teachers;
-    vector<Course> courses;
+    std::vector<Teacher> teachers;
+    std::vector<Course> courses;
     ClassroomInfo classrooms;
 };
 

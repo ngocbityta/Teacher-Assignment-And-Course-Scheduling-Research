@@ -1,4 +1,5 @@
 #include "phase1.h"
+#include "phase_common.h"
 #include <algorithm>
 #include <iostream>
 
@@ -9,6 +10,7 @@ static void fill_teacher_from_json(Teacher &teacher, const json &jt)
     teacher.id = jt.value("id", string());
     teacher.name = jt.value("name", string());
     teacher.max_courses = jt.value("max_courses", 1);
+    teacher.max_periods = jt.value("max_periods", 0); // 0 means no limit
     if (jt.contains("eligible_courses"))
         teacher.eligible_courses = jt["eligible_courses"].get<vector<string>>();
     if (jt.contains("course_preferences"))
@@ -58,10 +60,14 @@ static void fill_course_from_json(Course &course, const json &jc)
 
 ProblemData initialize_problem_from_json(const json &j_input)
 {
+    PhaseLogger::set_phase("PHASE1");
+    PhaseLogger::info("Initializing problem data from JSON");
+    
     ProblemData data;
 
     if (!j_input.contains("teachers") || !j_input.contains("courses") || !j_input.contains("classrooms"))
     {
+        PhaseLogger::error("Input JSON missing required keys: teachers, courses, or classrooms");
         throw runtime_error("Input JSON must contain keys: teachers, courses, classrooms");
     }
 
@@ -72,6 +78,7 @@ ProblemData initialize_problem_from_json(const json &j_input)
         fill_teacher_from_json(t, jt);
         data.teachers.push_back(std::move(t));
     }
+    PhaseLogger::debug("Loaded " + std::to_string(data.teachers.size()) + " teachers");
 
     // Courses
     for (const auto &jc : j_input["courses"])
@@ -80,6 +87,7 @@ ProblemData initialize_problem_from_json(const json &j_input)
         fill_course_from_json(c, jc);
         data.courses.push_back(std::move(c));
     }
+    PhaseLogger::debug("Loaded " + std::to_string(data.courses.size()) + " courses");
 
     // Classrooms
     const json &jc = j_input["classrooms"];
@@ -97,18 +105,15 @@ ProblemData initialize_problem_from_json(const json &j_input)
             data.classrooms.classrooms.push_back(room);
         }
     }
-    
-    // Giữ lại để tương thích ngược (deprecated)
-    if (jc.contains("classrooms_per_slot"))
-        data.classrooms.Clm = jc["classrooms_per_slot"].get<map<string, map<string, int>>>();
 
     // Construct Ij for each course: list of teacher ids eligible for this course, sorted by teacher's course preference
+    int total_eligible_assignments = 0;
     for (auto &course : data.courses)
     {
         vector<pair<string, int>> teacher_scores;
         for (const auto &t : data.teachers)
         {
-            if (find(t.eligible_courses.begin(), t.eligible_courses.end(), course.id) != t.eligible_courses.end())
+            if (is_teacher_eligible_for_course(t, course.id))
             {
                 int score = 0;
                 auto it = t.course_pref.find(course.id);
@@ -124,13 +129,15 @@ ProblemData initialize_problem_from_json(const json &j_input)
              });
         for (auto &p : teacher_scores)
             course.Ij.push_back(p.first);
+        total_eligible_assignments += (int)course.Ij.size();
     }
-
-    cout << "✅ Phase1 built from JSON: "
-         << data.teachers.size() << " teachers, "
-         << data.courses.size() << " courses, "
-         << data.classrooms.days.size() << " days, "
-         << data.classrooms.periods.size() << " periods.\n";
+    
+    PhaseLogger::info("Problem initialization completed: " + 
+                     std::to_string(data.teachers.size()) + " teachers, " +
+                     std::to_string(data.courses.size()) + " courses, " +
+                     std::to_string(data.classrooms.classrooms.size()) + " classrooms");
+    PhaseLogger::debug("Total eligible teacher-course assignments: " + 
+                      std::to_string(total_eligible_assignments));
 
     return data;
 }

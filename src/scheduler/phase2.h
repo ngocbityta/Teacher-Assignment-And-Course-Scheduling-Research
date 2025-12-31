@@ -1,20 +1,24 @@
 #pragma once
 #include "phase1.h"
 #include <vector>
-using namespace std;
+
+enum class Phase2Mode {
+    FEASIBLE_ONLY,
+    LIGHT_QUALITY
+};
 
 struct InitialSolution {
     struct Assignment {
-        string teacher_id;
-        string course_id;
-        string section_id;
-        string day;
-        string period;
-        string classroom_id; // lớp học được phân bổ
+        std::string teacher_id;
+        std::string course_id;
+        std::string section_id;
+        std::string day;
+        std::string period;
+        std::string classroom_id; // lớp học được phân bổ
         
         // Metadata phục vụ Phase 3
-        string initial_teacher;
-        string initial_timeslot;
+        std::string initial_teacher;
+        std::string initial_timeslot;
     };
 
     std::vector<Assignment> assignments;
@@ -27,20 +31,20 @@ InitialSolution construct_initial_solution(
     bool shuffle_teachers = false,
     bool shuffle_timeslots = false);
 
-vector<InitialSolution> generate_solution_pool(
+std::vector<InitialSolution> generate_solution_pool(
     const ProblemData &data,
     int K = 8,
     double min_diversity = -1.0,
     int max_solutions = 10);
 
-vector<InitialSolution> select_diverse_solutions(
-    const vector<InitialSolution> &pool,
+std::vector<InitialSolution> select_diverse_solutions(
+    const std::vector<InitialSolution> &pool,
     int N);
 
-InitialSolution assign_rooms_phase2(const ProblemData &data, const InitialSolution &initial);
 
 double evaluate_phase2_solution_quick(
-    const InitialSolution &sol,
+    const std::vector<InitialSolution> &pool,
+    int k,
     const ProblemData &data);
 
 bool is_phase2_solution_good_enough(

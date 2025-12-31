@@ -4,11 +4,13 @@
 
 #include "../scheduler/phase1.h"
 #include "../scheduler/phase3.h"
+#include "../scheduler/phase3_invariants.h"
 #include "ortools/sat/cp_model.h"
 #include "ortools/sat/cp_model_solver.h"
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 using json = nlohmann::json;
 using namespace drogon;
@@ -285,6 +287,42 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
         }
     }
     
+    // Hard constraint: Teacher max_courses
+    for (int i = 0; i < I; ++i)
+    {
+        map<int, BoolVar> course_indicators;
+        for (int j = 0; j < J; ++j)
+        {
+            if (!eligible[i][j]) continue;
+            BoolVar teaches_course = model.NewBoolVar();
+            course_indicators[j] = teaches_course;
+            LinearExpr section_sum = 0;
+            for (int k = 0; k < S[j]; ++k)
+            {
+                int r = data.courses[j].sections[k].required_periods;
+                for (int l = 0; l < L; ++l)
+                    for (int m0 = 0; m0 + r <= M; ++m0)
+                    {
+                        auto it = Y.find({i,j,k,l,m0});
+                        if (it != Y.end())
+                        {
+                            section_sum += it->second;
+                            model.AddGreaterOrEqual(teaches_course, it->second);
+                        }
+                    }
+            }
+            if (S[j] > 0)
+                model.AddLessOrEqual(section_sum, teaches_course * S[j] * L * M);
+        }
+        if (!course_indicators.empty())
+        {
+            LinearExpr num_courses = 0;
+            for (const auto &kv : course_indicators)
+                num_courses += kv.second;
+            model.AddLessOrEqual(num_courses, data.teachers[i].max_courses);
+        }
+    }
+    
     // Hard constraint: Sections of same course cannot overlap
     for (int j = 0; j < J; ++j)
     {
@@ -470,13 +508,18 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
     sat_model.Add(NewSatParameters(param_stream.str()));
     auto response = SolveCpModel(model.Build(), &sat_model);
     
-    cout << "[CPSatScheduler] Status: " << CpSolverStatus_Name(response.status()) << endl;
-    cout << "[CPSatScheduler] CP-SAT objective (all soft constraints): " << response.objective_value() << endl;
-    
     OptimalSolution sol;
     if (response.status() == CpSolverStatus::FEASIBLE || response.status() == CpSolverStatus::OPTIMAL)
     {
         extract_solution_to_optimal(response, Y, Y_room, data, R, sol);
+        
+        if (R > 0) {
+            for (auto &a : sol.assignments) {
+                if (a.classroom_id.empty()) {
+                    return OptimalSolution();
+                }
+            }
+        }
         const double w_course_pref = 1.0;
         const double w_time_pref = 1.0;
         const double w_workload_balance = 5.0;
@@ -655,18 +698,23 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
             double stddev = sqrt(variance / workloads.size());
             workload_penalty_value = stddev;
         }
-        
-        cout << "[CPSatScheduler] Full objective value (with penalties): " << sol.objective_value << endl;
-        cout << "[CPSatScheduler]   Breakdown:" << endl;
-        cout << "[CPSatScheduler]     Course preference + Time preference: " << course_time_score << endl;
-        cout << "[CPSatScheduler]     Workload penalty (stddev * " << w_workload_balance << "): " 
-             << (w_workload_balance * workload_penalty_value) << endl;
-        cout << "[CPSatScheduler]     Compactness penalty (" << w_compactness << " * gaps): " 
-             << (w_compactness * compactness_penalty) << endl;
     }
-    else
-    {
-        cout << "[CPSatScheduler] No feasible solution found." << endl;
+    
+    if (!sol.assignments.empty()) {
+        cout << sol.objective_value << endl;
+        
+        // TEMPORARY: Validate all constraints
+        bool is_valid = phase3::check_hard_invariant(sol, data);
+        int violations = phase3::count_hard_violations(sol, data);
+        if (!is_valid || violations > 0) {
+            cerr << "[CPSAT VALIDATION ERROR] Solution violates constraints!" << endl;
+            cerr << "[CPSAT VALIDATION] Violations count: " << violations << endl;
+            cerr << "[CPSAT VALIDATION] Solution is_valid: " << (is_valid ? "true" : "false") << endl;
+            cerr << endl << "=== DETAILED CONSTRAINT VIOLATIONS ===" << endl;
+            phase3::report_constraint_violations(sol, data);
+        } else {
+            cerr << "[CPSAT VALIDATION] All constraints satisfied!" << endl;
+        }
     }
     
     return sol;
@@ -699,6 +747,17 @@ void CPSatSchedulerController::schedule(const HttpRequestPtr &req,
         }
 
         OptimalSolution opt = solve_with_cpsat_all_constraints(data, time_limit);
+
+        if (opt.assignments.empty()) {
+            json err;
+            err["status"] = "error";
+            err["message"] = "CP-SAT failed: No feasible solution found or room assignment failed";
+            auto resp = HttpResponse::newHttpResponse();
+            resp->setStatusCode(k400BadRequest);
+            resp->setContentTypeCode(CT_APPLICATION_JSON);
+            resp->setBody(err.dump());
+            return callback(resp);
+        }
 
         // Build response JSON
         json jout;

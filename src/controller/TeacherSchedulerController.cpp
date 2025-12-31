@@ -32,15 +32,18 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
 
         InitialSolution init = construct_initial_solution(data);
         
-        int phase2_objective = evaluate_initial_solution(data, init);
-
-        OptimalSolution opt = find_optimal_solution(data, init);
+        if (init.assignments.empty()) {
+            json err;
+            err["status"] = "error";
+            err["message"] = "Phase 2 failed: No feasible solution found";
+            auto resp = HttpResponse::newHttpResponse();
+            resp->setStatusCode(k400BadRequest);
+            resp->setContentTypeCode(CT_APPLICATION_JSON);
+            resp->setBody(err.dump());
+            return callback(resp);
+        }
         
-        cout << "\n========== Phase 3 Result Summary ==========" << endl;
-        cout << "  Objective value: " << opt.objective_value << endl;
-        cout << "  Improvement: " << (opt.objective_value - phase2_objective) << " (" 
-             << ((opt.objective_value - phase2_objective) * 100.0 / max(abs(phase2_objective), 1)) << "%)" << endl;
-        cout << "==============================================" << endl;
+        OptimalSolution opt = find_optimal_solution(data, init);
 
         // Build response JSON
         json jout;

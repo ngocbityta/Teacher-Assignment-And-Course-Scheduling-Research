@@ -35,14 +35,33 @@ add_executable(teacher_scheduler
     src/controller/TeacherSchedulerController.cpp
     src/controller/TestCaseController.cpp
     src/controller/CPSatSchedulerController.cpp
+    src/scheduler/phase_common.cpp
     src/scheduler/phase1.cpp
     src/scheduler/phase2.cpp
     src/scheduler/phase3.cpp
+    src/scheduler/phase3_invariants.cpp
+    src/scheduler/phase3_index.cpp
+    src/scheduler/phase3_move_builder.cpp
+    src/scheduler/phase3_penalty_state.cpp
+    src/scheduler/phase3_move_evaluator.cpp
+    src/scheduler/phase3_move_committer.cpp
+    src/scheduler/phase3_sa.cpp
+    src/scheduler/phase3_repair.cpp
 )
 
 # ------------------------------------------------
 # Compile-time flags
 # ------------------------------------------------
+# AddressSanitizer: Enable with -DUSE_ASAN=ON
+# Example: cmake -DUSE_ASAN=ON ..
+option(USE_ASAN "Enable AddressSanitizer" OFF)
+
+if(USE_ASAN)
+    message(STATUS "AddressSanitizer enabled")
+    target_compile_options(teacher_scheduler PRIVATE -fsanitize=address -g -fno-omit-frame-pointer)
+    target_link_options(teacher_scheduler PRIVATE -fsanitize=address)
+endif()
+
 # Phase 3 refactor guard: Enable with -DPHASE3_REFACTOR_GUARD
 # Example: target_compile_definitions(teacher_scheduler PRIVATE PHASE3_REFACTOR_GUARD)
 # When enabled, uses refactored Phase 3 implementation; otherwise uses original implementation
