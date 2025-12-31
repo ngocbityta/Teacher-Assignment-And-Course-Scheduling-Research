@@ -376,6 +376,87 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
                         }
                 }
 
+    // 3. Workload balance (minimize penalty - use max - min approximation)
+    map<int, LinearExpr> teacher_workloads;
+    for (int i = 0; i < I; ++i)
+    {
+        LinearExpr workload = 0;
+        for (int l = 0; l < L; ++l)
+            for (int m = 0; m < M; ++m)
+            {
+                LinearExpr period_count = 0;
+                for (int j = 0; j < J; ++j)
+                    if (eligible[i][j])
+                        for (int k = 0; k < S[j]; ++k)
+                        {
+                            int r = data.courses[j].sections[k].required_periods;
+                            for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                            {
+                                if (m0 + r > M) continue;
+                                auto it = Y.find({i,j,k,l,m0});
+                                if (it != Y.end())
+                                    period_count += it->second;
+                            }
+                        }
+                workload += period_count;
+            }
+        teacher_workloads[i] = workload;
+    }
+
+    if (!teacher_workloads.empty() && I > 1)
+    {
+        IntVar max_workload = model.NewIntVar(Domain(0, 10000));
+        IntVar min_workload = model.NewIntVar(Domain(0, 10000));
+        
+        for (auto &kv : teacher_workloads)
+        {
+            IntVar workload_var = model.NewIntVar(Domain(0, 10000));
+            model.AddEquality(workload_var, kv.second);
+            model.AddGreaterOrEqual(max_workload, workload_var);
+            model.AddLessOrEqual(min_workload, workload_var);
+        }
+        
+        IntVar workload_diff = model.NewIntVar(Domain(0, 10000));
+        model.AddEquality(workload_diff, max_workload - min_workload);
+        objective -= w_workload_balance * workload_diff;
+    }
+
+    // 4. Compactness (minimize gaps - penalize non-consecutive periods)
+    for (int i = 0; i < I; ++i)
+        for (int l = 0; l < L; ++l)
+        {
+            map<int, BoolVar> has_class;
+            for (int m = 0; m < M; ++m)
+            {
+                has_class[m] = model.NewBoolVar();
+                LinearExpr sum = 0;
+                for (int j = 0; j < J; ++j)
+                    if (eligible[i][j])
+                        for (int k = 0; k < S[j]; ++k)
+                        {
+                            int r = data.courses[j].sections[k].required_periods;
+                            for (int m0 = max(0, m - r + 1); m0 <= m; ++m0)
+                            {
+                                if (m0 + r > M) continue;
+                                auto it = Y.find({i,j,k,l,m0});
+                                if (it != Y.end())
+                                    sum += it->second;
+                            }
+                        }
+                model.AddGreaterOrEqual(has_class[m], sum);
+                model.AddLessOrEqual(has_class[m], 1);
+            }
+
+            for (int m = 0; m < M - 1; ++m)
+            {
+                BoolVar gap = model.NewBoolVar();
+                model.AddBoolOr({has_class[m], gap.Not()});
+                model.AddBoolOr({has_class[m+1].Not(), gap.Not()});
+                model.AddBoolOr({has_class[m].Not(), has_class[m+1], gap});
+                objective -= w_compactness * gap;
+            }
+        }
+
     model.Maximize(objective);
 
     // Solve
@@ -390,14 +471,12 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
     auto response = SolveCpModel(model.Build(), &sat_model);
     
     cout << "[CPSatScheduler] Status: " << CpSolverStatus_Name(response.status()) << endl;
-    cout << "[CPSatScheduler] CP-SAT objective (course_pref + time_pref only): " << response.objective_value() << endl;
+    cout << "[CPSatScheduler] CP-SAT objective (all soft constraints): " << response.objective_value() << endl;
     
     OptimalSolution sol;
     if (response.status() == CpSolverStatus::FEASIBLE || response.status() == CpSolverStatus::OPTIMAL)
     {
         extract_solution_to_optimal(response, Y, Y_room, data, R, sol);
-        
-        // Calculate full objective value (same as phase3: course_pref + time_pref - workload_penalty - compactness_penalty)
         const double w_course_pref = 1.0;
         const double w_time_pref = 1.0;
         const double w_workload_balance = 5.0;
@@ -521,7 +600,6 @@ OptimalSolution solve_with_cpsat_all_constraints(const ProblemData &data, int ti
         
         sol.objective_value = score;
         
-        // Calculate breakdown for logging
         double course_time_score = 0.0;
         for (const auto &a : sol.assignments)
         {

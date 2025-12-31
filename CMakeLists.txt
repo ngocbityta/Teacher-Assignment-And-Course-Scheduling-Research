@@ -41,6 +41,13 @@ add_executable(teacher_scheduler
 )
 
 # ------------------------------------------------
+# Compile-time flags
+# ------------------------------------------------
+# Phase 3 refactor guard: Enable with -DPHASE3_REFACTOR_GUARD
+# Example: target_compile_definitions(teacher_scheduler PRIVATE PHASE3_REFACTOR_GUARD)
+# When enabled, uses refactored Phase 3 implementation; otherwise uses original implementation
+
+# ------------------------------------------------
 # Include + link
 # ------------------------------------------------
 target_include_directories(teacher_scheduler PRIVATE
