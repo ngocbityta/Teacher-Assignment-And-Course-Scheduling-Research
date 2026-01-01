@@ -3,8 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "../scheduler/phase1.h"
-#include "../scheduler/phase2.h"
-#include "../scheduler/phase3.h"
+#include "../scheduler/SchedulerService.h"
 
 using json = nlohmann::json;
 using namespace drogon;
@@ -30,20 +29,37 @@ void TeacherSchedulerController::schedule(const HttpRequestPtr &req,
 
         ProblemData data = initialize_problem_from_json(jin);
 
-        InitialSolution init = construct_initial_solution(data);
+        int time_limit = 30;
+        if (jin.contains("time_limit_seconds") && jin["time_limit_seconds"].is_number())
+        {
+            time_limit = jin["time_limit_seconds"];
+        }
         
-        if (init.assignments.empty()) {
+        // Determine algorithm
+        std::string algorithm = "heuristic";
+        if (jin.contains("algorithm") && jin["algorithm"].is_string()) {
+            algorithm = jin["algorithm"];
+        }
+
+        OptimalSolution opt;
+        if (algorithm == "exact") {
+             LOG_INFO << "Using EXACT solver";
+             opt = SchedulerService::solve_exact(data, time_limit);
+        } else {
+             LOG_INFO << "Using HEURISTIC solver";
+             opt = SchedulerService::solve_heuristic(data, 10, time_limit);
+        }
+
+        if (opt.assignments.empty()) {
             json err;
             err["status"] = "error";
-            err["message"] = "Phase 2 failed: No feasible solution found";
+            err["message"] = "Phase 2/3 failed: No feasible solution found";
             auto resp = HttpResponse::newHttpResponse();
             resp->setStatusCode(k400BadRequest);
             resp->setContentTypeCode(CT_APPLICATION_JSON);
             resp->setBody(err.dump());
             return callback(resp);
         }
-        
-        OptimalSolution opt = find_optimal_solution(data, init);
 
         // Build response JSON
         json jout;

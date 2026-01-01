@@ -15,6 +15,8 @@ namespace fs = std::experimental::filesystem;
 #include "../scheduler/phase1.h"
 #include "../scheduler/phase2.h"
 #include "../scheduler/phase3.h"
+#include "../scheduler/phase3_invariants.h" // Added for constraint checking
+#include "../scheduler/SchedulerService.h"
 
 using json = nlohmann::json;
 using namespace drogon;
@@ -130,20 +132,25 @@ void TestCaseController::runTestCase(const HttpRequestPtr &req,
         auto init_end = high_resolution_clock::now();
         auto init_duration = duration_cast<milliseconds>(init_end - init_start).count();
 
-        // Construct initial solution (Phase 2 will print its own result)
-        auto phase2_start = high_resolution_clock::now();
-        InitialSolution init = construct_initial_solution(data);
-        auto phase2_end = high_resolution_clock::now();
-        auto phase2_duration = duration_cast<milliseconds>(phase2_end - phase2_start).count();
+        // Get time limit (optional, default 30 seconds for heuristic)
+        int time_limit = 30;
+        if (request_json.contains("time_limit_seconds") && request_json["time_limit_seconds"].is_number())
+        {
+            time_limit = request_json["time_limit_seconds"];
+        }
 
-        // Find optimal solution
         auto phase3_start = high_resolution_clock::now();
-        OptimalSolution opt = find_optimal_solution(data, init);
+        // Use heuristic solver
+        OptimalSolution opt = SchedulerService::solve_heuristic(data, 10, time_limit);
+        
         auto phase3_end = high_resolution_clock::now();
         auto phase3_duration = duration_cast<milliseconds>(phase3_end - phase3_start).count();
 
         auto end_time = high_resolution_clock::now();
         auto total_duration = duration_cast<milliseconds>(end_time - start_time).count();
+
+        // Check for hard constraint violations
+        int violations = phase3::count_hard_violations(opt, data);
 
         // Build response JSON
         json jout;
@@ -163,12 +170,12 @@ void TestCaseController::runTestCase(const HttpRequestPtr &req,
         jout["timing"]["total_time_ms"] = total_duration;
         jout["timing"]["total_time_seconds"] = total_duration / 1000.0;
         jout["timing"]["phase1_init_ms"] = init_duration;
-        jout["timing"]["phase2_initial_solution_ms"] = phase2_duration;
-        jout["timing"]["phase3_optimization_ms"] = phase3_duration;
+        jout["timing"]["phase3_optimization_ms"] = phase3_duration; 
 
         // Solution results
         jout["solution"] = json::object();
         jout["solution"]["objective_value"] = opt.objective_value;
+        jout["solution"]["hard_constraint_violations"] = violations; // Added violation count
         jout["solution"]["assignments"] = json::array();
 
         for (const auto &a : opt.assignments)
@@ -343,12 +350,15 @@ void TestCaseController::runTestCaseCPSat(const HttpRequestPtr &req,
 
         // Solve with CP-SAT (all constraints)
         auto cpsat_start = high_resolution_clock::now();
-        OptimalSolution opt = solve_with_cpsat_all_constraints(data, time_limit);
+        OptimalSolution opt = SchedulerService::solve_exact(data, time_limit);
         auto cpsat_end = high_resolution_clock::now();
         auto cpsat_duration = duration_cast<milliseconds>(cpsat_end - cpsat_start).count();
 
         auto end_time = high_resolution_clock::now();
         auto total_duration = duration_cast<milliseconds>(end_time - start_time).count();
+
+        // Check hard violations
+        int violations = phase3::count_hard_violations(opt, data);
 
         // Build response JSON
         json jout;
@@ -375,6 +385,7 @@ void TestCaseController::runTestCaseCPSat(const HttpRequestPtr &req,
         // Solution results
         jout["solution"] = json::object();
         jout["solution"]["objective_value"] = opt.objective_value;
+        jout["solution"]["hard_constraint_violations"] = violations; // Added violation count
         jout["solution"]["assignments"] = json::array();
 
         for (const auto &a : opt.assignments)

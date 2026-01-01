@@ -47,6 +47,8 @@ add_executable(teacher_scheduler
     src/scheduler/phase3_move_committer.cpp
     src/scheduler/phase3_sa.cpp
     src/scheduler/phase3_repair.cpp
+    src/scheduler/CPSatSolver.cpp
+    src/scheduler/SchedulerService.cpp
 )
 
 # ------------------------------------------------

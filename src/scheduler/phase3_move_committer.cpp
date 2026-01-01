@@ -24,7 +24,6 @@ void commit_move(
     current_solution = move_context.candidate;
     current_solution.objective_value = candidate_score;
     
-    // Only update best solution if candidate has better score AND passes hard constraints
     if (candidate_score > best_solution.objective_value) {
         // Verify the candidate passes all hard constraints before becoming best
         if (check_hard_invariant(move_context.candidate, data)) {
@@ -45,9 +44,6 @@ void update_penalty_state(
     const MoveDelta &move_delta,
     const ProblemData &data) {
     
-    // Use delta updates for all moves - apply_change already handles incremental updates
-    // For ROOM_SWAP/ROOM_SHIFT, apply_change will only update affected room slots (O(#slots affected))
-    // For chain/block moves, apply_change will only update affected teacher slots and compactness
     for (const auto &assignment_change : move_context.changes) {
         penalty_state.apply_change(assignment_change, data);
     }

@@ -4,3 +4,4 @@
 bool PhaseLogger::verbose_mode = false;
 std::string PhaseLogger::current_phase = "UNKNOWN";
 
+
