@@ -1,4 +1,5 @@
 #include "phase3_move_evaluator.h"
+#include "phase3_config.h"
 #include "phase3_index.h"
 #include "phase3_invariants.h"
 #include "phase3_penalty_state.h"
@@ -200,9 +201,6 @@ std::string MoveEvaluator::is_feasible_with_removal(
             if (slot_idx >= 0) {
                 bool is_old_slot = old_slots.count(slot_idx) > 0;
                 auto it_slot = it_course->second.find(slot_idx);
-                // Check if slot is occupied by someone ELSE
-                // If same_course and is_old_slot, we account for 1 count. Conflict if count > 1.
-                // Otherwise, conflict if count > 0.
                 if (it_slot != it_course->second.end()) {
                     int count = it_slot->second;
                     int ignored_count = (same_course && is_old_slot) ? 1 : 0;
@@ -216,14 +214,55 @@ std::string MoveEvaluator::is_feasible_with_removal(
     }
     
     if (data.classrooms.classrooms.empty()) return "";
+
+    int required_seats = lookups.get_required_seats(new_a.course_id, new_a.section_id);
+
+    // OPTIMIZATION: Check requested room first (critical for ROOM moves)
+    if (!new_a.classroom_id.empty()) {
+        bool capacity_ok = false;
+        const Classroom* requested_room = nullptr;
+        for (const auto &room : data.classrooms.classrooms) {
+            if (room.id == new_a.classroom_id) {
+                if (room.capacity >= required_seats) {
+                    capacity_ok = true;
+                    requested_room = &room;
+                }
+                break;
+            }
+        }
+
+        if (capacity_ok && requested_room) {
+            auto it_room = idx.classroom_busy_idx.find(requested_room->id);
+            bool available = true;
+            bool same_classroom = (!old_a.classroom_id.empty() && old_a.classroom_id == requested_room->id);
+            
+            for_each_slot(new_a, cache, [&](const Slot &slot) {
+                int slot_idx = safe_slot_index(slot.day_idx, slot.period_idx, idx.num_periods, "is_feasible_with_removal:room_check");
+                if (slot_idx >= 0) {
+                    bool is_old_slot = old_slots.count(slot_idx) > 0;
+                    if (it_room != idx.classroom_busy_idx.end() && it_room->second.count(slot_idx) && (!same_classroom || !is_old_slot)) {
+                        available = false;
+                    }
+                }
+            });
+            if (available) return requested_room->id;
+        }
+    }
     
-    bool old_has_classroom = !old_a.classroom_id.empty();
+    // Fallback: Find any available room with sufficient capacity
     for (const auto &room : data.classrooms.classrooms) {
+        // Skip requested room as we already checked it
+        if (!new_a.classroom_id.empty() && room.id == new_a.classroom_id) continue;
+        
+        // Capacity check
+        if (room.capacity < required_seats) continue;
+        
         auto it_room = idx.classroom_busy_idx.find(room.id);
         bool available = true;
-        bool same_classroom = (old_has_classroom && old_a.classroom_id == room.id);
+        bool same_classroom = (!old_a.classroom_id.empty() && old_a.classroom_id == room.id);
+        
         for_each_slot(new_a, cache, [&](const Slot &slot) {
-            int slot_idx = safe_slot_index(slot.day_idx, slot.period_idx, idx.num_periods, "is_feasible_with_removal:room");
+            int slot_idx = safe_slot_index(slot.day_idx, slot.period_idx, idx.num_periods, "is_feasible_with_removal:room_loop");
             if (slot_idx >= 0) {
                 bool is_old_slot = old_slots.count(slot_idx) > 0;
                 if (it_room != idx.classroom_busy_idx.end() && it_room->second.count(slot_idx) && (!same_classroom || !is_old_slot)) {
@@ -731,9 +770,9 @@ static double get_time_pref_score(const OptimalSolution::Assignment &a,
 static double compute_stability_penalty(const OptimalSolution::Assignment &current,
                                        const OptimalSolution::Assignment &initial,
                                        const ProblemData &data) {
-    constexpr double STABILITY_TEACHER_PENALTY = 1.5;
-    constexpr double STABILITY_TIMESLOT_PENALTY = 1.0;
-    constexpr double STABILITY_CORE_MULTIPLIER = 1.5;
+    const double STABILITY_TEACHER_PENALTY = config::STABILITY_TEACHER_PENALTY;
+    const double STABILITY_TIMESLOT_PENALTY = config::STABILITY_TIMESLOT_PENALTY;
+    const double STABILITY_CORE_MULTIPLIER = config::STABILITY_CORE_MULTIPLIER;
     
     double penalty = 0.0;
     
@@ -756,26 +795,83 @@ static double compute_stability_penalty(const OptimalSolution::Assignment &curre
 static double compute_workload_delta(const std::vector<AssignmentChange> &changes,
                                     const PenaltyState &current_state,
                                     const ProblemData &data) {
-    PenaltyState temp_state = current_state;
+    if (current_state.workload_values.empty()) return 0.0;
+    
+    // Copy the multiset (cheap for small number of teachers)
+    std::multiset<int> temp_values = current_state.workload_values;
+    
+    // We need a local map for teachers modified in this batch to handle multiple changes to same teacher correctly
+    std::unordered_map<std::string, int> modified_workloads;
     
     for (const auto &chg : changes) {
-        temp_state.update_workload(chg, data);
+        int old_p = ::get_required_periods(data, chg.old_a.course_id, chg.old_a.section_id);
+        int new_p = ::get_required_periods(data, chg.new_a.course_id, chg.new_a.section_id);
+        
+        // Initialize from current state if not yet modified in this batch
+        if (modified_workloads.find(chg.old_a.teacher_id) == modified_workloads.end()) {
+             auto it = current_state.workload.find(chg.old_a.teacher_id);
+             modified_workloads[chg.old_a.teacher_id] = (it != current_state.workload.end()) ? it->second : 0;
+             
+             // Remove original value from temp_values ONCE
+             if (modified_workloads[chg.old_a.teacher_id] > 0) {
+                 auto it_val = temp_values.find(modified_workloads[chg.old_a.teacher_id]);
+                 if (it_val != temp_values.end()) temp_values.erase(it_val);
+             }
+        }
+        
+        if (chg.old_a.teacher_id != chg.new_a.teacher_id) {
+            if (modified_workloads.find(chg.new_a.teacher_id) == modified_workloads.end()) {
+                 auto it = current_state.workload.find(chg.new_a.teacher_id);
+                 modified_workloads[chg.new_a.teacher_id] = (it != current_state.workload.end()) ? it->second : 0;
+                 
+                 // Remove original value from temp_values ONCE
+                 if (modified_workloads[chg.new_a.teacher_id] > 0) {
+                     auto it_val = temp_values.find(modified_workloads[chg.new_a.teacher_id]);
+                     if (it_val != temp_values.end()) temp_values.erase(it_val);
+                 }
+            }
+        }
+        
+        // Apply changes to local map
+        modified_workloads[chg.old_a.teacher_id] -= old_p;
+        modified_workloads[chg.new_a.teacher_id] += new_p;
     }
     
-    return temp_state.workload_var - current_state.workload_var;
+    // Insert final modified values back into temp_values
+    for (const auto &kv : modified_workloads) {
+        if (kv.second > 0) {
+            temp_values.insert(kv.second);
+        }
+    }
+    
+    double old_penalty = current_state.get_workload_penalty();
+    double new_penalty = 0.0;
+    if (!temp_values.empty()) {
+        new_penalty = (double)(*temp_values.rbegin() - *temp_values.begin());
+    }
+    
+    return new_penalty - old_penalty;
 }
 
 static double compute_compactness_delta(const std::vector<AssignmentChange> &changes,
                                       const PenaltyState &current_state,
                                       const ProblemData &data) {
+    // Compactness delta requires day_slots structure which is heavy to copy.
+    // However, PenaltyState::update_compactness updates day_slots efficiently.
+    // We can copy the whole PenaltyState if needed, or better, implement incremental logic.
+    // For now, assume state copy is acceptable as we did before, but be mindful of performance.
+    // Actually, PREVIOUS implementation copied the whole state!
+    // "PenaltyState temp_state = current_state;"
+    // This copies the heavy maps. 
+    // Optimization: Only copy affected teacher-days?
+    // Given the constraints and time, let's stick to state copy for correctness first.
+    // But wait, compute_compactness_delta was using full state copy.
+    
     PenaltyState temp_state = current_state;
-    
     double initial_compactness = current_state.compactness;
-    
     for (const auto &chg : changes) {
         temp_state.update_compactness(chg, data);
     }
-    
     return temp_state.compactness - initial_compactness;
 }
 
@@ -792,8 +888,11 @@ std::pair<double, double> evaluate_move(
     const std::unordered_map<std::string, OptimalSolution::Assignment> &initial_map,
     const OptimalSolution &initial_sol,
     MoveDelta &delta_out) {
-    const double w_course_pref = 1.0, w_time_pref = 1.0, w_workload_balance = 5.0;
-    const double w_compactness = 3.0, w_stability = 2.0;
+    const double w_course_pref = config::WEIGHT_COURSE_PREF;
+    const double w_time_pref = config::WEIGHT_TIME_PREF;
+    const double w_workload_balance = config::WEIGHT_WORKLOAD_BALANCE;
+    const double w_compactness = config::WEIGHT_COMPACTNESS;
+    const double w_stability = config::WEIGHT_STABILITY;
     
     double delta_course_pref = 0.0, delta_time_pref = 0.0, delta_stability = 0.0;
     for (const auto &chg : ctx.changes) {
@@ -813,30 +912,13 @@ std::pair<double, double> evaluate_move(
                                compute_stability_penalty(chg.old_a, it_initial->second, data);
     }
     
-    delta_out.delta_workload_var = compute_workload_delta(ctx.changes, current_state, data);
+    delta_out.delta_workload = compute_workload_delta(ctx.changes, current_state, data);
     delta_out.delta_compactness = compute_compactness_delta(ctx.changes, current_state, data);
     
-    double current_workload_var = current_state.workload_var;
-    double new_workload_var = current_workload_var + delta_out.delta_workload_var;
-    int current_num_teachers = (int)current_state.workload.size();
-    
-    // CachedIndices cache(data); // Removed local cache
-    std::unordered_map<std::string, int> new_workload = current_state.workload;
-    for (const auto &chg : ctx.changes) {
-        int old_p = cache.get_required_periods(chg.old_a.course_id, chg.old_a.section_id);
-        int new_p = cache.get_required_periods(chg.new_a.course_id, chg.new_a.section_id);
-        new_workload[chg.old_a.teacher_id] -= old_p;
-        if (new_workload[chg.old_a.teacher_id] <= 0) new_workload.erase(chg.old_a.teacher_id);
-        new_workload[chg.new_a.teacher_id] += new_p;
-    }
-    int new_num_teachers = (int)new_workload.size();
-    
-    double current_workload_penalty = (current_num_teachers > 0) ? std::sqrt(current_workload_var / current_num_teachers) : 0.0;
-    double new_workload_penalty = (new_num_teachers > 0) ? std::sqrt(new_workload_var / new_num_teachers) : 0.0;
-    double delta_workload = new_workload_penalty - current_workload_penalty;
-    
     double delta_soft = w_course_pref * delta_course_pref + w_time_pref * delta_time_pref - w_stability * delta_stability;
-    double delta = delta_soft - w_workload_balance * delta_workload - w_compactness * delta_out.delta_compactness;
+    
+    // New Max-Min Workload logic:
+    double delta = delta_soft - w_workload_balance * delta_out.delta_workload - w_compactness * delta_out.delta_compactness;
     
     delta_out.delta_soft_local = delta_soft;
     delta_out.delta_hard = calculate_delta_hard(ctx, data, cache, lookups, current_idx);

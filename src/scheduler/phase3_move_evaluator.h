@@ -29,7 +29,7 @@ struct TryAssignmentResult {
 struct MoveDelta {
     int delta_hard = 0;  // Must be 0 for move to be accepted
     double delta_soft_local = 0.0;
-    double delta_workload_var = 0.0;
+    double delta_workload = 0.0;
     double delta_compactness = 0.0;
 };
 

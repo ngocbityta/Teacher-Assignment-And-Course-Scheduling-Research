@@ -32,3 +32,6 @@ OptimalSolution find_optimal_solution(const ProblemData& data, const InitialSolu
 
 // Hàm tính objective value cho InitialSolution (để so sánh với Phase 3)
 double evaluate_initial_solution(const ProblemData& data, const InitialSolution& init_sol);
+
+// Hàm tính objective value cho OptimalSolution (dùng chung cho cả Heuristic và CP-SAT)
+double evaluate_solution(const ProblemData& data, const OptimalSolution& sol);

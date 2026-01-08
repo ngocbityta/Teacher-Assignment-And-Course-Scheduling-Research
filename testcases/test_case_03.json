@@ -57,7 +57,7 @@
     {
       "id": "T1",
       "name": "Super Teacher 1",
-      "max_courses": 5,
+      "max_courses": 10,
       "course_preferences": {
         "MATH101": 9,
         "MATH102": 8,
@@ -134,7 +134,7 @@
     {
       "id": "T2",
       "name": "Super Teacher 2",
-      "max_courses": 5,
+      "max_courses": 10,
       "course_preferences": {
         "PHY101": 9,
         "PHY102": 8,
@@ -211,7 +211,7 @@
     {
       "id": "T3",
       "name": "Super Teacher 3",
-      "max_courses": 4,
+      "max_courses": 10,
       "course_preferences": {
         "HIST101": 9,
         "HIST102": 8,
@@ -286,7 +286,7 @@
     {
       "id": "T4",
       "name": "Super Teacher 4",
-      "max_courses": 4,
+      "max_courses": 10,
       "course_preferences": {
         "BUS101": 9,
         "ACC101": 8,
@@ -361,7 +361,7 @@
     {
       "id": "T5",
       "name": "Super Teacher 5",
-      "max_courses": 4,
+      "max_courses": 10,
       "course_preferences": {
         "ART101": 9,
         "MUS101": 8,
@@ -436,7 +436,7 @@
     {
       "id": "T6",
       "name": "Super Teacher 6",
-      "max_courses": 5,
+      "max_courses": 10,
       "course_preferences": {
         "MATH201": 9,
         "MATH301": 8,

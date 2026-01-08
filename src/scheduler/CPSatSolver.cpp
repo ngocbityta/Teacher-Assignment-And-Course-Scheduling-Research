@@ -18,13 +18,14 @@ OptimalSolution CPSatSolver::solve()
     add_hard_constraints();
     add_soft_constraints();
     
-    // Solve
+    // Solve with optimized parameters
     Model sat_model;
     ostringstream param_stream;
     param_stream << "max_time_in_seconds:" << time_limit_seconds_ << " "
-                 << "num_search_workers:4 "
-                 << "log_search_progress:true "
+                 << "num_search_workers:8 "           // Use 8 workers for parallelism
+                 << "log_search_progress:false "      // Disable verbose logging
                  << "cp_model_presolve:true "
+                 << "linearization_level:2 "          // More aggressive linearization
                  << "stop_after_first_solution:false";
     sat_model.Add(NewSatParameters(param_stream.str()));
     
@@ -545,35 +546,62 @@ void CPSatSolver::add_soft_constraints()
                         }
                     }
                 }
+                // has_class[m] <=> sum >= 1
+                // 1. sum >= 1 => has_class (if there's a class, has_class must be 1)
                 model_.AddGreaterOrEqual(has_class[m], sum);
+                // 2. has_class => sum >= 1 (if has_class is 1, there must be a class)
+                model_.AddLessOrEqual(has_class[m], sum);
+                // 3. has_class is binary (0 or 1)
                 model_.AddLessOrEqual(has_class[m], 1);
             }
 
-            for (int m = 0; m < M - 1; ++m)
-            {
-                BoolVar gap = model_.NewBoolVar();
-                // gap = 1 if has_class[m]=1 AND has_class[m+1]=0 AND ... wait.
-                // The original logic was:
-                // model.AddBoolOr({has_class[m], gap.Not()}); -> if has_class[m]=0, gap=0 (unless... wait)
-                // Logic for "gap" in original code:
-                // model.AddBoolOr({has_class[m], gap.Not()});       => gap => has_class[m]
-                // model.AddBoolOr({has_class[m+1].Not(), gap.Not()}); => gap => !has_class[m+1]
-                // model.AddBoolOr({has_class[m].Not(), has_class[m+1], gap}); => !has_class[m] or has_class[m+1] or gap => if has_class[m] and !has_class[m+1], then gap must be 1.
-                // So gap is 1 IFF has_class[m]==1 and has_class[m+1]==0.
-                // This penalizes a transition from Class to No-Class. 
-                // This counts "blocks" of classes? 
-                // A gap penalty usually checks for Class - NoClass - Class.
-                // But this code looks like it counts every time a class ends.
-                // If I have Class, Class, Empty, Empty -> Gap at m=1.
-                // If I have Class, Empty, Class -> Gap at m=0.
-                // This seems to encourage contiguous blocks by penalizing the "end" of a block.
-                // The number of "ends" corresponds to number of blocks.
-                // So minimizing this minimizes number of blocks (makes things compact).
-                
-                model_.AddBoolOr({has_class[m], gap.Not()});
-                model_.AddBoolOr({has_class[m+1].Not(), gap.Not()});
-                model_.AddBoolOr({has_class[m].Not(), has_class[m+1], gap});
-                objective -= w_compactness * gap;
+            // New Compactness Logic: Minimize Empty Slots (Gap Size) - Aligned with Heuristic
+            // An empty slot is a gap if:
+            // 1. It has no class (has_class[m] == 0)
+            // 2. There is a class before it (started_before[m] == 1)
+            // 3. There is a class after it (class_after[m] == 1)
+            
+            std::vector<BoolVar> started_before(M);
+            std::vector<BoolVar> class_after(M);
+            
+            // Forward pass for started_before
+            for (int m = 0; m < M; ++m) {
+                started_before[m] = model_.NewBoolVar();
+                if (m == 0) {
+                    model_.AddEquality(started_before[m], 0);
+                } else {
+                    // started_before[m] <=> started_before[m-1] OR has_class[m-1]
+                    // 1. (start[m-1] OR class[m-1]) => start[m]
+                    model_.AddImplication(started_before[m-1], started_before[m]);
+                    model_.AddImplication(has_class[m-1], started_before[m]);
+                    
+                    // 2. start[m] => (start[m-1] OR class[m-1])
+                    model_.AddBoolOr({started_before[m-1], has_class[m-1], started_before[m].Not()});
+                }
+            }
+            
+            // Backward pass for class_after
+            for (int m = M - 1; m >= 0; --m) {
+                class_after[m] = model_.NewBoolVar();
+                if (m == M - 1) {
+                    model_.AddEquality(class_after[m], 0);
+                } else {
+                    // class_after[m] <=> class_after[m+1] OR has_class[m+1]
+                    // 1. (after[m+1] OR class[m+1]) => after[m]
+                    model_.AddImplication(class_after[m+1], class_after[m]);
+                    model_.AddImplication(has_class[m+1], class_after[m]);
+                    
+                    // 2. after[m] => (after[m+1] OR class[m+1])
+                    model_.AddBoolOr({class_after[m+1], has_class[m+1], class_after[m].Not()});
+                }
+            }
+            
+            // Gap penalty: is_gap = 1 when slot is empty but surrounded by classes
+            for (int m = 0; m < M; ++m) {
+                BoolVar is_gap = model_.NewBoolVar();
+                // Constraint: (!has_class && started_before && class_after) => is_gap
+                model_.AddBoolOr({has_class[m], started_before[m].Not(), class_after[m].Not(), is_gap});
+                objective -= w_compactness * is_gap;
             }
         }
 
@@ -616,7 +644,8 @@ OptimalSolution CPSatSolver::extract_solution(const CpSolverResponse& response)
         }
     }
     
-    sol.objective_value = response.objective_value();
+    // Use the same evaluation function as Heuristic for consistent comparison
+    sol.objective_value = evaluate_solution(data_, sol);
     return sol;
 }
 

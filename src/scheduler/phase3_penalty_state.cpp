@@ -32,20 +32,11 @@ static inline void for_each_slot(const OptimalSolution::Assignment &a, const Pro
 }
 
 double PenaltyState::get_workload_penalty() const {
-    int num_teachers = (int)workload.size();
-    return (num_teachers > 0) ? std::sqrt(workload_var / num_teachers) : 0.0;
+    if (workload_values.empty()) return 0.0;
+    return (double)(*workload_values.rbegin() - *workload_values.begin());
 }
 
-void PenaltyState::update_workload_var_from_sums() {
-    int num_teachers = (int)workload.size();
-    if (num_teachers > 0) {
-        double mean = sum_workload / num_teachers;
-        workload_var = (sum_workload_squared / num_teachers) - (mean * mean);
-        if (workload_var < 0.0) workload_var = 0.0;
-    } else {
-        workload_var = 0.0;
-    }
-}
+// update_workload_var_from_sums is removed as we use multiset for Max-Min
 
 double PenaltyState::compute_compactness_for_set(const std::unordered_set<int> &slots) {
     if (slots.empty()) return 0.0;
@@ -76,44 +67,33 @@ void PenaltyState::update_workload(const AssignmentChange &chg, const ProblemDat
     int old_p = ::get_required_periods(data, chg.old_a.course_id, chg.old_a.section_id);
     int new_p = ::get_required_periods(data, chg.new_a.course_id, chg.new_a.section_id);
     
-    int w_old_old = workload.count(chg.old_a.teacher_id) ? workload[chg.old_a.teacher_id] : 0;
-    int w_old_new = workload.count(chg.new_a.teacher_id) ? workload[chg.new_a.teacher_id] : 0;
+    int w_old_old = workload[chg.old_a.teacher_id];
+    int w_old_new = workload[chg.new_a.teacher_id];
     bool same_teacher = (chg.old_a.teacher_id == chg.new_a.teacher_id);
     
-    if (w_old_old > 0) {
-        sum_workload -= w_old_old;
-        sum_workload_squared -= (double)w_old_old * w_old_old;
-    }
-    if (!same_teacher && w_old_new > 0) {
-        sum_workload -= w_old_new;
-        sum_workload_squared -= (double)w_old_new * w_old_new;
+    // Remove old values from multiset
+    auto it1 = workload_values.find(w_old_old);
+    if (it1 != workload_values.end()) workload_values.erase(it1);
+    
+    if (!same_teacher) {
+        auto it2 = workload_values.find(w_old_new);
+        if (it2 != workload_values.end()) workload_values.erase(it2);
     }
     
+    // Update workloads (always keep them in the map, even if 0)
     workload[chg.old_a.teacher_id] -= old_p;
-    bool old_teacher_removed = (workload[chg.old_a.teacher_id] <= 0);
-    if (old_teacher_removed) workload.erase(chg.old_a.teacher_id);
     workload[chg.new_a.teacher_id] += new_p;
     
-    int w_new_old = old_teacher_removed ? 0 : workload[chg.old_a.teacher_id];
+    int w_new_old = workload[chg.old_a.teacher_id];
     int w_new_new = workload[chg.new_a.teacher_id];
     
+    // Insert new values into multiset
     if (same_teacher) {
-        if (w_new_new > 0) {
-            sum_workload += w_new_new;
-            sum_workload_squared += (double)w_new_new * w_new_new;
-        }
+        workload_values.insert(w_new_new);
     } else {
-        if (w_new_old > 0) {
-            sum_workload += w_new_old;
-            sum_workload_squared += (double)w_new_old * w_new_old;
-        }
-        if (w_new_new > 0) {
-            sum_workload += w_new_new;
-            sum_workload_squared += (double)w_new_new * w_new_new;
-        }
+        workload_values.insert(w_new_old);
+        workload_values.insert(w_new_new);
     }
-    
-    update_workload_var_from_sums();
 }
 
 void PenaltyState::update_compactness(const AssignmentChange &chg, const ProblemData &data) {
@@ -302,6 +282,11 @@ static inline int get_room_capacity(const ProblemData &data, const std::string &
 PenaltyState init_penalty_state(const OptimalSolution &sol, const ProblemData &data) {
     PenaltyState state;
     
+    // Initialize ALL teachers with 0 workload (for fair balance calculation)
+    for (const auto &t : data.teachers) {
+        state.workload[t.id] = 0;
+    }
+    
     std::unordered_map<std::string, std::unordered_map<int, std::unordered_set<int>>> room_usage;
     
     for (const auto &a : sol.assignments) {
@@ -367,15 +352,10 @@ PenaltyState init_penalty_state(const OptimalSolution &sol, const ProblemData &d
         }
     }
     
-    state.sum_workload = 0.0;
-    state.sum_workload_squared = 0.0;
+    // Initialize workload values multiset with ALL teachers (including those with 0 workload)
     for (const auto &tw : state.workload) {
-        int w = tw.second;
-        state.sum_workload += w;
-        state.sum_workload_squared += (double)w * w;
+        state.workload_values.insert(tw.second);
     }
-    
-    state.update_workload_var_from_sums();
     
     return state;
 }

@@ -230,19 +230,19 @@ void run_simulated_annealing(
     int stuck_threshold = 100;
     
     if (problem_size > 200) {
-        max_iterations = 300;  // Reduced from 400
-        base_moves_per_neighborhood = 4;  // Further reduced from 8 (87.5% reduction)
-        stuck_threshold = 40;  // Reduced from 50 for faster stuck detection
-        limit_no_improvement = 80;  // Reduced from 100
+        max_iterations = 2500;  // Increased from 300 for better optimization on large cases
+        base_moves_per_neighborhood = 16;  // Increased from 4
+        stuck_threshold = 150;  // Increased from 40
+        limit_no_improvement = 500;  // Increased from 80
     } else if (problem_size > 100) {
         // Large problem: moderate reduction  
-        max_iterations = 800;
-        base_moves_per_neighborhood = 16;  // 50% reduction
-        stuck_threshold = 75;
-        limit_no_improvement = 150;
+        max_iterations = 1500; // Increased from 800
+        base_moves_per_neighborhood = 24;  // Increased from 16
+        stuck_threshold = 100; // Increased from 75
+        limit_no_improvement = 300; // Increased from 150
     } else {
-        max_iterations = 500;
-        base_moves_per_neighborhood = 8;
+        max_iterations = 1000;
+        base_moves_per_neighborhood = 32;
         stuck_threshold = 50;
         limit_no_improvement = 100;
     }

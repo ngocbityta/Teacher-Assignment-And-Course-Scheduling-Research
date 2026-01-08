@@ -1,0 +1,11 @@
+test_case,num_teachers,num_classrooms,num_courses,num_sections,num_days,num_periods,heuristic_total_ms,heuristic_objective,heuristic_violations,cpsat_total_ms,cpsat_objective,cpsat_violations,delta
+test_case_01.json,7,8,16,25,5,8,3077,585.0,0,3551,606.0,0,21.0
+test_case_02.json,15,8,13,18,5,8,4010,442.0,0,1508,448.0,0,6.0
+test_case_03.json,6,8,40,40,5,8,7762,889.0,0,3044,897.0,0,8.0
+test_case_04.json,8,8,16,46,5,8,5370,1047.0,0,12006,1084.0,0,37.0
+test_case_05.json,8,8,27,41,5,8,4239,894.0,0,2421,928.0,0,34.0
+test_case_06.json,9,8,17,20,5,8,4609,475.0,0,1325,490.0,0,15.0
+test_case_07.json,10,8,19,22,5,8,4032,519.0,0,2384,525.0,0,6.0
+test_case_08.json,11,8,21,25,5,8,4208,581.0,0,2434,594.0,0,13.0
+test_case_09.json,11,8,19,23,5,8,4530,507.0,0,3080,513.0,0,6.0
+test_case_10.json,15,8,41,46,5,8,12148,1035.0,0,8019,1075.0,0,40.0

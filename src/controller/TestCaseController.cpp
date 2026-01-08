@@ -103,6 +103,8 @@ void TestCaseController::runTestCase(const HttpRequestPtr &req,
         int num_classrooms = 0;
         int num_courses = 0;
         int num_sections = 0;
+        int num_days = 0;
+        int num_periods = 0;
 
         if (test_data.contains("teachers"))
         {
@@ -112,6 +114,16 @@ void TestCaseController::runTestCase(const HttpRequestPtr &req,
         if (test_data.contains("classrooms") && test_data["classrooms"].contains("classrooms"))
         {
             num_classrooms = test_data["classrooms"]["classrooms"].size();
+        }
+
+        if (test_data.contains("classrooms") && test_data["classrooms"].contains("days"))
+        {
+            num_days = test_data["classrooms"]["days"].size();
+        }
+
+        if (test_data.contains("classrooms") && test_data["classrooms"].contains("periods"))
+        {
+            num_periods = test_data["classrooms"]["periods"].size();
         }
 
         if (test_data.contains("courses"))
@@ -163,6 +175,8 @@ void TestCaseController::runTestCase(const HttpRequestPtr &req,
         jout["statistics"]["num_classrooms"] = num_classrooms;
         jout["statistics"]["num_courses"] = num_courses;
         jout["statistics"]["num_sections"] = num_sections;
+        jout["statistics"]["num_days"] = num_days;
+        jout["statistics"]["num_periods"] = num_periods;
         jout["statistics"]["num_assignments"] = opt.assignments.size();
 
         // Timing information
@@ -319,6 +333,8 @@ void TestCaseController::runTestCaseCPSat(const HttpRequestPtr &req,
         int num_classrooms = 0;
         int num_courses = 0;
         int num_sections = 0;
+        int num_days = 0;
+        int num_periods = 0;
 
         if (test_data.contains("teachers"))
         {
@@ -328,6 +344,16 @@ void TestCaseController::runTestCaseCPSat(const HttpRequestPtr &req,
         if (test_data.contains("classrooms") && test_data["classrooms"].contains("classrooms"))
         {
             num_classrooms = test_data["classrooms"]["classrooms"].size();
+        }
+
+        if (test_data.contains("classrooms") && test_data["classrooms"].contains("days"))
+        {
+            num_days = test_data["classrooms"]["days"].size();
+        }
+
+        if (test_data.contains("classrooms") && test_data["classrooms"].contains("periods"))
+        {
+            num_periods = test_data["classrooms"]["periods"].size();
         }
 
         if (test_data.contains("courses"))
@@ -372,6 +398,8 @@ void TestCaseController::runTestCaseCPSat(const HttpRequestPtr &req,
         jout["statistics"]["num_classrooms"] = num_classrooms;
         jout["statistics"]["num_courses"] = num_courses;
         jout["statistics"]["num_sections"] = num_sections;
+        jout["statistics"]["num_days"] = num_days;
+        jout["statistics"]["num_periods"] = num_periods;
         jout["statistics"]["num_assignments"] = opt.assignments.size();
 
         // Timing information

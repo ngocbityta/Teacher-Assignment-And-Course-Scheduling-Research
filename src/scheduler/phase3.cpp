@@ -1,4 +1,5 @@
 #include "phase3.h"
+#include "phase3_config.h"
 #include "phase3_invariants.h"
 #include "phase3_index.h"
 #include "phase3_move.h"
@@ -153,9 +154,13 @@ static void assign_initial_rooms(OptimalSolution &sol, const ProblemData &data) 
 static double Evaluate(const OptimalSolution &sol, const ProblemData &data,
                       const unordered_map<string, const Teacher*> &teacher_map,
                       const unordered_map<string, unordered_map<int, int>> &time_pref_map,
-                      const OptimalSolution &initial_sol) {
-    const double w_course_pref = 1.0, w_time_pref = 1.0, w_workload_balance = 5.0;
-    const double w_compactness = 3.0, w_stability = 2.0;
+                      const OptimalSolution &initial_sol,
+                      bool enable_stability = true) {
+    const double w_course_pref = config::WEIGHT_COURSE_PREF;
+    const double w_time_pref = config::WEIGHT_TIME_PREF;
+    const double w_workload_balance = config::WEIGHT_WORKLOAD_BALANCE;
+    const double w_compactness = config::WEIGHT_COMPACTNESS;
+    const double w_stability = enable_stability ? config::WEIGHT_STABILITY : 0.0;
     
     double course_pref_score = 0.0, time_pref_score = 0.0;
     for (const auto &a : sol.assignments) {
@@ -204,9 +209,9 @@ static double Evaluate(const OptimalSolution &sol, const ProblemData &data,
         initial_map[get_assignment_id(a)] = a;
     
     double stability_penalty = 0.0;
-    const double STABILITY_TEACHER_PENALTY = 1.5;
-    const double STABILITY_TIMESLOT_PENALTY = 1.0;
-    const double STABILITY_CORE_MULTIPLIER = 1.5;
+    const double STABILITY_TEACHER_PENALTY = config::STABILITY_TEACHER_PENALTY;
+    const double STABILITY_TIMESLOT_PENALTY = config::STABILITY_TIMESLOT_PENALTY;
+    const double STABILITY_CORE_MULTIPLIER = config::STABILITY_CORE_MULTIPLIER;
     
     for (const auto &a : sol.assignments) {
         auto it = initial_map.find(get_assignment_id(a));
@@ -227,11 +232,14 @@ static double Evaluate(const OptimalSolution &sol, const ProblemData &data,
         }
     }
     
-    const double w_room_penalty = 5.0; // Room conflicts and capacity violations (reduced to allow SA flexibility)
+    const double w_room_penalty = 0.0; // disabled for fair comparison (CP-SAT has room as hard constraint)
+    
+    double workload_penalty = state.get_workload_penalty();
+    double compactness_penalty = state.compactness;
     
     return w_course_pref * course_pref_score + w_time_pref * time_pref_score
-           - w_workload_balance * state.get_workload_penalty()
-           - w_compactness * state.compactness
+           - w_workload_balance * workload_penalty
+           - w_compactness * compactness_penalty
            - w_stability * stability_penalty
            - w_room_penalty * state.get_room_penalty();
 }
@@ -387,12 +395,71 @@ OptimalSolution find_optimal_solution(const ProblemData &data, const InitialSolu
         init_data.initial_assignment_map);
     
     
-    // BUG FIX: Don't recalculate objective - it's already correct from SA
-    // Recalculating can cause discrepancies due to incremental vs full recalculation
-    // The objective_value in best_solution is already set correctly during commit_move()
-    // init_data.best_solution.objective_value = Evaluate(
-    //     init_data.best_solution, data, init_data.teacher_map, init_data.time_pref_map, 
-    //     init_data.initial_solution);
+    // FAIR COMPARISON: Re-evaluate using same function as CP-SAT (stability disabled)
+    init_data.best_solution.objective_value = Evaluate(
+        init_data.best_solution, data, init_data.teacher_map, init_data.time_pref_map, 
+        init_data.initial_solution, false);
+
+    // [SCORE_BREAKDOWN] LOGGING
+    {
+        const OptimalSolution &sol = init_data.best_solution;
+        double course_pref_score = 0.0, time_pref_score = 0.0;
+        for (const auto &a : sol.assignments) {
+            auto it_teacher = init_data.teacher_map.find(a.teacher_id);
+            if (it_teacher != init_data.teacher_map.end()) {
+                auto pc_it = it_teacher->second->course_pref.find(a.course_id);
+                if (pc_it != it_teacher->second->course_pref.end()) 
+                    course_pref_score += pc_it->second;
+            }
+            
+            int required_periods = 1;
+            for (const auto &c : data.courses) {
+                if (c.id == a.course_id) {
+                    for (const auto &s : c.sections) {
+                        if (s.id == a.section_id) {
+                            required_periods = s.required_periods;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            int start_period_idx = find_period_index(data.classrooms.periods, a.period);
+            int day_idx = find_day_index(data.classrooms.days, a.day);
+            int num_periods = (int)data.classrooms.periods.size();
+            if (start_period_idx >= 0 && day_idx >= 0) {
+                auto teacher_it = init_data.time_pref_map.find(a.teacher_id);
+                if (teacher_it != init_data.time_pref_map.end()) {
+                    for (int t = 0; t < required_periods && start_period_idx + t < num_periods; ++t) {
+                        int period_idx = start_period_idx + t;
+                        int slot_idx_val = slot_index(day_idx, period_idx, num_periods);
+                        auto slot_it = teacher_it->second.find(slot_idx_val);
+                        if (slot_it != teacher_it->second.end()) {
+                            time_pref_score += slot_it->second;
+                        }
+                    }
+                }
+            }
+        }
+        
+        PenaltyState state = init_penalty_state(sol, data);
+        double workload_penalty = state.get_workload_penalty();
+        double compactness_penalty = state.compactness;
+        double room_penalty = state.get_room_penalty();
+        
+        std::cout << "[SCORE_BREAKDOWN] CoursePref: " << course_pref_score 
+                  << " (w=1.0) -> " << 1.0 * course_pref_score << std::endl;
+        std::cout << "[SCORE_BREAKDOWN] TimePref:   " << time_pref_score 
+                  << " (w=1.0) -> " << 1.0 * time_pref_score << std::endl;
+        std::cout << "[SCORE_BREAKDOWN] Workload:   " << workload_penalty 
+                  << " (w=5.0) -> " << -5.0 * workload_penalty << std::endl;
+        std::cout << "[SCORE_BREAKDOWN] Compact:    " << compactness_penalty 
+                  << " (w=3.0) -> " << -3.0 * compactness_penalty << std::endl;
+        std::cout << "[SCORE_BREAKDOWN] RoomPen:    " << room_penalty 
+                  << " (w=0.0) -> " << -0.0 * room_penalty << std::endl;
+        std::cout << "[SCORE_BREAKDOWN] TOTAL:      " << init_data.best_solution.objective_value << std::endl;
+    }
     
     
     // Validate constraints (only log errors to cerr if violations found, similar to CPSatSchedule)
@@ -410,7 +477,7 @@ OptimalSolution find_optimal_solution(const ProblemData &data, const InitialSolu
         init_data.best_solution = init_data.initial_solution;
         init_data.best_solution.objective_value = Evaluate(
             init_data.best_solution, data, init_data.teacher_map, init_data.time_pref_map, 
-            init_data.initial_solution);
+            init_data.initial_solution, false);
     }
     
     // Output final objective value (same format as CPSatSchedule)
@@ -440,6 +507,28 @@ double evaluate_initial_solution(const ProblemData& data, const InitialSolution&
     }
     
     OptimalSolution opt_sol(init_sol);
-    return Evaluate(opt_sol, data, teacher_map, time_pref_map, opt_sol);
+    return Evaluate(opt_sol, data, teacher_map, time_pref_map, opt_sol, true);
 }
 
+double evaluate_solution(const ProblemData& data, const OptimalSolution& sol) {
+    // Build teacher and time preference maps for evaluation
+    unordered_map<string, const Teacher*> teacher_map;
+    for (const auto &t : data.teachers) {
+        teacher_map[t.id] = &t;
+    }
+    
+    unordered_map<string, unordered_map<int, int>> time_pref_map;
+    int num_periods = (int)data.classrooms.periods.size();
+    for (const auto &t : data.teachers) {
+        for (const auto &tp : t.time_pref) {
+            int day_idx = find_day_index(data.classrooms.days, tp.day);
+            int period_idx = find_period_index(data.classrooms.periods, tp.period);
+            if (day_idx >= 0 && period_idx >= 0) {
+                int slot_idx_val = slot_index(day_idx, period_idx, num_periods);
+                time_pref_map[t.id][slot_idx_val] = tp.score;
+            }
+        }
+    }
+
+    return Evaluate(sol, data, teacher_map, time_pref_map, sol, false);
+}

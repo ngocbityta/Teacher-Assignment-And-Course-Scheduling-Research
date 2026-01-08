@@ -2,6 +2,7 @@
 
 #include "phase3.h"
 #include "phase3_move.h"
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -14,20 +15,18 @@ constexpr int MAX_PERIOD_INDEX = 128;
 // Tracks workload balance, compactness, and room conflict penalties
 struct PenaltyState {
     std::unordered_map<std::string, int> workload;
+    std::multiset<int> workload_values; // For Min-Max calculation
     std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_set<int>>> day_slots;
     // Room conflict tracking: (room_id, day_idx) -> set of busy periods
     std::unordered_map<std::string, std::unordered_map<int, std::unordered_set<int>>> room_slots;
     // Room capacity violations: count of assignments where required_seats > room_capacity
     int room_capacity_violations = 0;
-    double workload_var = 0.0;
-    double sum_workload = 0.0;
-    double sum_workload_squared = 0.0;
+    
     double compactness = 0.0;
     double room_conflict_penalty = 0.0; // Count of room-time conflicts
     
     double get_workload_penalty() const;
     double get_room_penalty() const; // Returns room_conflict_penalty + capacity_violations
-    void update_workload_var_from_sums();
     static double compute_compactness_for_set(const std::unordered_set<int> &slots);
     double compute_compactness_for_teacher_day(const std::string &teacher_id, const std::string &day) const;
     void update_workload(const AssignmentChange &chg, const ProblemData &data);

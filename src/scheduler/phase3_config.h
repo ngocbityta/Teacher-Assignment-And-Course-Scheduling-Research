@@ -10,7 +10,7 @@ constexpr double WEIGHT_COURSE_PREF = 1.0;
 constexpr double WEIGHT_TIME_PREF = 1.0;
 constexpr double WEIGHT_WORKLOAD_BALANCE = 5.0;
 constexpr double WEIGHT_COMPACTNESS = 3.0;
-constexpr double WEIGHT_STABILITY = 2.0;
+constexpr double WEIGHT_STABILITY = 1.0;
 constexpr double WEIGHT_ROOM_PENALTY = 5.0;
 
 // ============================================================================
