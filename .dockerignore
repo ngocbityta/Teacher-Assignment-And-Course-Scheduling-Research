@@ -1,0 +1,38 @@
+# Build output
+build/
+bin/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# Benchmark results
+benchmark_*.csv
+benchmark_*.png

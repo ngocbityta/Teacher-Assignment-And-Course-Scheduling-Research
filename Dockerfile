@@ -92,6 +92,7 @@ RUN apt-get update && apt-get install -y \
     libyaml-cpp0.7 \
     libjsoncpp25 \
     ca-certificates \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Drogon runtime libraries
